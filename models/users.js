@@ -30,7 +30,7 @@ const userSchema = new mongoose.Schema({
   },
   expires_at: {
     type: Date,
-    default: () => new Date(Date.now() + 3 * 60 * 1000),
+    default: () => new Date(Date.now() + 5 * 60 * 1000),
     required: true,
   },
   createdAt: { type: Date, default: Date.now },

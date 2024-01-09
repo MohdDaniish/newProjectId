@@ -1,10 +1,11 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const User = require('../models/users');
+const Business = require('../models/business');
 const Helper = require('../helper/function');
 const router = express.Router();
-const nodemailer = require('nodemailer');
-const emailConfig = require('../emailconfig');
+const jwt = require('jsonwebtoken');
+
 
 router.get("/dashboard", async (req,res) =>{
  
@@ -29,19 +30,32 @@ router.post("/register", async (req,res) =>{
         // Hash the password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        
+        const otapa = Helper.generateOTP();       
         // Create a new user
         const newUser = new User({
           email:email,
           password: hashedPassword,
           userId:email,
-          otp: Helper.generateOTP()
+          otp: otapa
         });
     
         // Save the user to the database
-        await newUser.save();
+        const issave = await newUser.save();
+        if(issave){
+          const emailResponse = await Helper.sendVerificationEmail(email, otapa);
+
+          if (emailResponse.success) {
+            return res.status(200).json({ message: 'User registered successfully! Email Verification OTP sent' });
+              // Additional logic for OTP verification or other actions
+          } else {
+              console.error('Failed to send email:', emailResponse.message);
+              return res.status(400).json({ error: 'Something Went Wrong' });
+              // Handle error accordingly
+          }
+        } else {
+          return res.status(500).json({ error: 'Internal server error' });
+        }
     
-        return res.status(200).json({ message: 'User registered successfully' });
       } catch (error) {
         console.error(error);
         return res.status(500).json({ error: 'Internal server error' });
@@ -59,25 +73,26 @@ router.post('/verify', async (req, res) => {
     if(!OTPI){
         return res.status(400).json({ error: 'Invalid OTP', message: 'Invalid OTP' });   
     } else if(OTPI){
-    console.log("Now Time",new Date());
-    const otpchk = await User.findOne({ email: email, otp: otp, expires_at: { $gt: new Date() } });
+      const expire = OTPI.expires_at;
+      console.log("db_expire_time", expire);
+      console.log("current_time", new Date());
+      const dbExpireTime = new Date(expire);
+      const currentTime = new Date();
 
-    if (!otpchk) {
-      console.log('OTP has expired.');
-      return res.status(400).json({ error: 'OTP has expired' });
+if (dbExpireTime >= currentTime) {
+      const result = await User.updateOne({ email: email }, { $set: { isVerified: true } });
+      if (result.modifiedCount > 0) {
+        return res.status(200).json({ message: 'User with email '+email+' Verified successfully.' });
+      } else {
+        return res.status(400).json({ error: 'User with email '+email+' not Verified' });
+      }
+    //console.log("Now Time",new Date());
+    //const otpchk = await User.findOne({ email: email, otp: otp, expires_at: { $lt: new Date() } });
     } else {
-
-        const result = await User.updateOne({ email: email }, { $set: { isVerified: true } });
-
-        if (result.modifiedCount > 0) {
-          return res.status(200).json({ message: 'User with email '+email+' Verified successfully.' });
-        } else {
-          return res.status(400).json({ error: 'User with email '+email+' not Verified' });
-        }
-       
-      // You can continue with your verification logic here
+      return res.status(400).json({ error: 'OTP Expired', message: 'OTP Expired' });   
     }
-   }
+    }
+   
 })
 
 router.post('/login', async (req, res) => {
@@ -86,7 +101,7 @@ router.post('/login', async (req, res) => {
   
       // Find the user in the database
       const user = await User.findOne({ 
-       isVerify: true, 
+       isVerified: true, 
        email: email,
        });
       
@@ -94,13 +109,91 @@ router.post('/login', async (req, res) => {
         res.status(401).json({ error: 'Email Not Verified' });
       } else if (!(await bcrypt.compare(password, user.password))) {
         res.status(401).json({ error: 'Invalid credentials' });
-      } else {
-        res.status(200).json({ message: 'Login successful' });
+      } else if(user && await bcrypt.compare(password, user.password)){
+        // jwt Token
+        const jwtkey="cd9270cce63517ac6beb96eyr76nj973jdol329bhd90c21c27268b3bbfcdd20e3"
+                  const payload = {
+                    sub: email,
+                    iat: Math.floor(Date.now() / 1000),
+                  };
+                  let token=jwt.sign(payload,jwtkey,{
+                    expiresIn:"24h"
+                  })
+        res.status(200).json({ success:true, message: 'Login successful',token });
       }
     } catch (error) {
       res.status(500).json({ error: 'Internal server error' });
     }
   });
+
+  router.post('/resend', async (req,res) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+      }
+      const existingUser = await User.findOne({ email });
+        if (!existingUser) {
+          return res.status(409).json({ error: 'Email not exist' });
+        }
+      const otapa = Helper.generateOTP();
+      if(otapa){
+        const result = await User.updateOne({ email: email }, { $set: { otp: otapa, expires_at : new Date(Date.now() + 5 * 60 * 1000) } });
+        if(result){
+      const emailResponse = await Helper.sendVerificationEmail(email, otapa);
+     
+      if (emailResponse.success) {
+        return res.status(200).json({ message: 'Resend Otp sent to Email' });
+          // Additional logic for OTP verification or other actions
+      } else {
+          console.error('Failed to send email:', emailResponse.message);
+          return res.status(400).json({ error: 'Something Went Wrong' });
+          // Handle error accordingly
+      }
+    }
+    }
+    } catch (error) {
+        return res.status(422).json({ errors: validationErrors });
+    }
+  })
+
+  router.post('/createBusiness', async (req, res) => {
+    try {
+
+      const { user_id, business_name, business_address, business_location, business_pin, business_phone } = req.body;
+
+      // Check for required fields
+      if (!user_id || !business_name || !business_address || !business_location || !business_pin || !business_phone) {
+          return res.status(400).json({ error: 'All required fields must be provided.' });
+      }
+
+      const existingUser = await User.findOne({ email : user_id });
+        if (!existingUser) {
+          return res.status(409).json({ error: 'User Not Exist' });
+        }
+        // Generate a random business code
+        const businessCode = Math.floor(Math.random() * (9999999999 - 100000000 + 1)) + 100000000;
+
+        // Create a new business instance
+        const business = new Business({
+            user_id: req.body.user_id,
+            business_name: req.body.business_name,
+            business_address: req.body.business_address,
+            business_location: req.body.business_location,
+            business_pin: req.body.business_pin,
+            business_phone: req.body.business_phone,
+            business_code: businessCode,
+        });
+
+        // Save the business to the database
+        const savedBusiness = await business.save();
+        if(savedBusiness){
+        return res.status(200).json({ message: 'Business '+business_name+' Added successfully.' });
+        }
+    } catch (error) {
+        return res.status(422).json({ errors: validationErrors });
+    }
+});
 
 router.post("/sendEMail", async (req,res) => {
     try {
