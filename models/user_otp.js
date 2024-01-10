@@ -8,8 +8,21 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     trim: true,
   },
+  password: {
+    type: String,
+    required: true,
+  },
   otp: {
     type: String,
+    required: true,
+  },
+  isVerified: {
+    type: Boolean,
+    default: false,
+  },
+  expires_at: {
+    type: Date,
+    default: () => new Date(Date.now() + 5 * 60 * 1000),
     required: true,
   },
   createdAt: { type: Date, default: Date.now },

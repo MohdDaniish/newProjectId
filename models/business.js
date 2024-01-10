@@ -40,8 +40,9 @@ const businessSchema = new mongoose.Schema({
         }
     },
     business_code: {
-        type: Number,
-        required: true
+        type: String,
+        required: true,
+        unique: true
     },
     category: {
         type: String 

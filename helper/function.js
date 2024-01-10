@@ -8,6 +8,19 @@ function generateOTP() {
     return otp.toString();
   }
 
+  function genRandomString() {
+    const length = 10;
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+  
+    for (let i = 0; i < length; i++) {
+      const randomIndex = Math.floor(Math.random() * charset.length);
+      result += charset.charAt(randomIndex);
+    }
+  
+    return result;
+  } 
+
   async function sendVerificationEmail(email, otp) {
     try {
         // Create a nodemailer transporter with your email service credentials
@@ -43,5 +56,6 @@ function generateOTP() {
 
   module.exports = {
     generateOTP: generateOTP,
-    sendVerificationEmail: sendVerificationEmail
+    sendVerificationEmail: sendVerificationEmail,
+    genRandomString:genRandomString
   };
