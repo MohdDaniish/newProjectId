@@ -10,7 +10,7 @@ function generateOTP() {
 
   function genRandomString() {
     const length = 10;
-    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const charset = 'ABCDEFGHIJKL0123456789MNOPQRSTUVWXYZ0123456789';
     let result = '';
   
     for (let i = 0; i < length; i++) {

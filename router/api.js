@@ -3,6 +3,8 @@ const bcrypt = require('bcrypt');
 const User = require('../models/users');
 const UserOtp = require('../models/user_otp');
 const Business = require('../models/business');
+const Category = require('../models/category');
+const BusinessCategory = require('../models/business_category');
 const Helper = require('../helper/function');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
@@ -72,17 +74,7 @@ router.post("/register", async (req,res) =>{
           return res.status(200).json({ status:false,message:'Internal Server Error',error: 'Internal server error' });
         }
       }
-        // Create a new user
-        // const newUser = new User({
-        //   email:email,
-        //   password: hashedPassword,
-        //   userId:email,
-        //   otp: otapa
-        // });
-    
-        // Save the user to the database
-        
-    
+       
       } catch (error) {
         console.error(error);
         return res.status(200).json({status:false, message:'Internal Server Error', error: 'Internal server error' });
@@ -108,7 +100,8 @@ router.post('/verify', async (req, res) => {
       const currentTime = new Date();
 
 if (dbExpireTime >= currentTime) {
-      
+  const prev = await User.findOne({ email });
+  if(!prev){
       const newUser = new User({
           email:email,
           password: password,
@@ -129,6 +122,17 @@ if (dbExpireTime >= currentTime) {
       } else {
         return res.status(200).json({status:false, message:'User with email '+email+' not Verified', error: 'User with email '+email+' not Verified' });
       }
+    } else {
+      const payload = {
+        sub: email,
+        iat: Math.floor(Date.now() / 1000),
+      };
+      let token=jwt.sign(payload,jwtkey,{
+        expiresIn:"24h"
+      })
+      const data = { email: email, token: token };
+      return res.status(200).json({ status:true, message: 'Login successful',data:data });
+    }
     //console.log("Now Time",new Date());
     //const otpchk = await User.findOne({ email: email, otp: otp, expires_at: { $lt: new Date() } });
     } else {
@@ -232,11 +236,74 @@ router.post('/login', async (req, res) => {
         // Save the business to the database
         const savedBusiness = await business.save();
         if(savedBusiness){
-        return res.status(200).json({ status:true, message: 'Business '+business_name+' Added successfully.' });
+          const data = { email: email, business_code: businessCode };
+        return res.status(200).json({ status:true, message: 'Business '+business_name+' Added successfully.', data: data });
         }
     } catch (error) {
         return res.status(200).json({ status:false, errors: validationErrors });
     }
+});
+
+router.post('/addCategory', async (req, res) => {
+  try{
+    const { category_name } = req.body;
+    const categoryCode = Helper.genRandomString();
+    const newCat = new Category({
+      category_name:category_name,
+      category_code: categoryCode
+    });
+    const isave = await newCat.save();
+    if(isave){
+      return res.status(200).json({ status:true, message:'Category '+category_name+' added successfully' });
+    }
+  } catch (error) {
+    return res.status(200).json({ status:false, message:'error while adding category' });
+}
+})
+
+router.post('/updateCategory', async (req, res) => {
+  try {
+
+    const {business_code, category_name, no_of_entity,no_of_floors, description } = req.body;
+
+    // Check for required fields
+    if (!business_code || !category_name || !no_of_entity || !no_of_floors || !description) {
+        return res.status(200).json({ status:false, message:'All required fields must be provided.', error: 'All required fields must be provided.' });
+    }
+   
+    const hasCat = await Category.findOne({ category_name });
+    if(!hasCat){
+      return res.status(200).json({ status:false, message:'Invalid Category', error: 'Invalid Category' });
+    }
+
+    const existingBusi = await Business.findOne({ business_code });
+      if (!existingBusi) {
+        return res.status(200).json({ status:false, message:'User Not Exist', error: 'Invalid Business Code' });
+      } else {
+      const email = existingBusi.user_id;
+      }
+      // Generate a random business code
+      const businessCode = Helper.genRandomString();
+
+      // Create a new business instance
+      const business = new BusinessCategory({
+          category_name: req.body.user_id,
+          business_name: req.body.business_name,
+          business_address: req.body.business_address,
+          business_location: req.body.business_location,
+          business_pin: req.body.business_pin,
+          business_phone: req.body.business_phone,
+          business_code: businessCode,
+      });
+
+      // Save the business to the database
+      const savedBusiness = await business.save();
+      if(savedBusiness){
+      return res.status(200).json({ status:true, message: 'Business '+business_name+' Added successfully.' });
+      }
+  } catch (error) {
+      return res.status(200).json({ status:false, errors: validationErrors });
+  }
 });
 
 router.post("/sendEMail", async (req,res) => {
