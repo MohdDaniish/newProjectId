@@ -220,6 +220,11 @@ router.post('/login', async (req, res) => {
         if (!existingUser) {
           return res.status(200).json({ status:false, message:'User Not Exist', error: 'User Not Exist' });
         }
+
+        const existphone = await Business.findOne({ business_phone : business_phone });
+        if (existphone) {
+          return res.status(200).json({ status:false, message:'Phone number Already used', error: 'Phone number Already used' });
+        }
         // Generate a random business code
         const businessCode = Helper.genRandomString();
 
@@ -237,13 +242,25 @@ router.post('/login', async (req, res) => {
         // Save the business to the database
         const savedBusiness = await business.save();
         if(savedBusiness){
-          const data = { email: email, business_code: businessCode };
-        return res.status(200).json({ status:true, message: 'Business '+business_name+' Added successfully.', data: data });
+          const data = { email: user_id, business_code: businessCode };
+        return res.status(200).json({ status:true, message: 'Business '+business_name+' Added successfully.', data : data });
         }
     } catch (error) {
         return res.status(200).json({ status:false, errors: validationErrors });
     }
 });
+
+router.get('/categories', async (req, res) => {
+  try{
+   
+    const iscat = await Category.find({});
+    if(iscat){
+      return res.status(200).json({ status:true, message:'Categories', data : iscat });
+    }
+  } catch (error) {
+    return res.status(200).json({ status:false, message:'error while fetching category' });
+}
+})
 
 router.post('/addCategory', async (req, res) => {
   try{
@@ -265,27 +282,25 @@ router.post('/addCategory', async (req, res) => {
 router.post('/updateCategory', async (req, res) => {
   try {
 
-    const {business_code, category_name, no_of_entity,no_of_floors, description } = req.body;
+    const {business_code, category_code, no_of_entity,no_of_floors, description } = req.body;
 
     // Check for required fields
-    if (!business_code || !category_name || !no_of_entity || !no_of_floors || !description) {
+    if (!business_code || !category_code || !no_of_entity || !no_of_floors || !description) {
         return res.status(200).json({ status:false, message:'All required fields must be provided.', error: 'All required fields must be provided.' });
     }
    
-    const hasCat = await Category.findOne({ category_name });
+    const hasCat = await Category.findOne({ category_code });
     if(!hasCat){
       return res.status(200).json({ status:false, message:'Invalid Category', error: 'Invalid Category' });
     }
 
     const existingBusi = await Business.findOne({ business_code });
       if (!existingBusi) {
-        return res.status(200).json({ status:false, message:'User Not Exist', error: 'Invalid Business Code' });
-      } else {
-      const email = existingBusi.user_id;
+        return res.status(200).json({ status:false, message:'Invalid Business Code', error: 'Invalid Business Code' });
       }
 
       const business = new BusinessCategory({
-        category_name: category_name,
+        category_code: category_code,
         business_code: business_code,
         no_of_entity: no_of_entity,
         no_of_floors: no_of_floors,
@@ -295,7 +310,7 @@ router.post('/updateCategory', async (req, res) => {
     // Save the business to the database
     const savedBusiness = await business.save();
     if (savedBusiness) {
-      return res.status(200).json({ status:true, message:'Business Category Added with Business Code '+business_code, error: 'Invalid Business Code' });
+      return res.status(200).json({ status:true, message:'Business Category Added with Business Code '+business_code });
       } else {
       return res.status(200).json({ status:false, message:'Category Not Updated' });  
       }
