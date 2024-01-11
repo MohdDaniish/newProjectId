@@ -5,6 +5,7 @@ const UserOtp = require('../models/user_otp');
 const Business = require('../models/business');
 const Category = require('../models/category');
 const BusinessCategory = require('../models/business_category');
+const Forgot = require('../models/forgot.js');
 const Helper = require('../helper/function');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
@@ -170,7 +171,7 @@ router.post('/login', async (req, res) => {
                   return res.status(200).json({ status:true, message: 'Login successful',data:data });
       }
     } catch (error) {
-      res.status(200).json({ status:false, message:'Internal server error', error: 'Internal server error' });
+      res.status(200).json({ status:false, message:'Internal server error', error: error });
     }
   });
 
@@ -282,25 +283,23 @@ router.post('/updateCategory', async (req, res) => {
       } else {
       const email = existingBusi.user_id;
       }
-      // Generate a random business code
-      const businessCode = Helper.genRandomString();
 
-      // Create a new business instance
       const business = new BusinessCategory({
-          category_name: req.body.user_id,
-          business_name: req.body.business_name,
-          business_address: req.body.business_address,
-          business_location: req.body.business_location,
-          business_pin: req.body.business_pin,
-          business_phone: req.body.business_phone,
-          business_code: businessCode,
-      });
+        category_name: category_name,
+        business_code: business_code,
+        no_of_entity: no_of_entity,
+        no_of_floors: no_of_floors,
+        description: description
+    });
 
-      // Save the business to the database
-      const savedBusiness = await business.save();
-      if(savedBusiness){
-      return res.status(200).json({ status:true, message: 'Business '+business_name+' Added successfully.' });
+    // Save the business to the database
+    const savedBusiness = await business.save();
+    if (savedBusiness) {
+      return res.status(200).json({ status:true, message:'Business Category Added with Business Code '+business_code, error: 'Invalid Business Code' });
+      } else {
+      return res.status(200).json({ status:false, message:'Category Not Updated' });  
       }
+    
   } catch (error) {
       return res.status(200).json({ status:false, errors: validationErrors });
   }
@@ -343,8 +342,125 @@ router.post("/sendEMail", async (req,res) => {
       }
 })
 
-router.get("/direct-list", async (req,res)=>{
+router.post("/forgot", async (req,res)=>{
+  try {
+    const { email } = req.body;
     
+    console.log("email",email);
+    // Validate email and password
+    if (!email) {
+      return res.status(200).json({ status:false, message:'Email is required', error: 'Email is required' });
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (!existingUser) {
+      return res.status(200).json({ status:false, message:'Email is not registered',error: 'Email is not registered' });
+    }
+
+    const otapa = Helper.generateOTP();  
+  
+      const exisotp = await Forgot.findOne({ email });
+      if(!exisotp){
+      const newotp = new Forgot({
+        email:email,
+        otp: otapa
+      });
+      const issave = await newotp.save();
+      if(issave){
+        const emailResponse = await Helper.sendVerificationEmail(email, otapa);
+        if (emailResponse.success) {
+          return res.status(200).json({status:true, message: 'Forgot OTP sent to mail' });
+        } else {
+            console.error('Failed to send email:', emailResponse.message);
+            return res.status(200).json({ status:false, message:'Something Went Wrong',error: 'Something Went Wrong' });
+        }
+      } else {
+        return res.status(200).json({status:false, error: 'Something Went Wrong' });
+      }
+    } else {
+      const result = await Forgot.updateOne({ email: email }, { $set: { otp: otapa, expires_at : new Date(Date.now() + 5 * 60 * 1000) } });
+      if (result.modifiedCount > 0) {
+        const emailResponse = await Helper.sendVerificationEmail(email, otapa);
+        if (emailResponse.success) {
+          return res.status(200).json({status:true, message: 'Forgot OTP sent to mail' });
+        } else {
+            console.error('Failed to send email:', emailResponse.message);
+            return res.status(200).json({ status:false, message:'Something Went Wrong',error: 'Something Went Wrong' });
+        }
+      } else {
+        return res.status(200).json({status:false, error: 'Something Went Wrong' });
+      }
+    }
+  
+   
+  } catch (error) {
+    console.error(error);
+    return res.status(200).json({status:false, message:'Internal Server Error', error: 'Internal server error' });
+  }
+})
+
+router.post('/verify_forgot', async (req, res) => {
+  try {
+  const { email, otp } = req.body;
+
+  if (!email || !otp) {
+      return res.status(200).json({ status:false, message:'Email and OTP are required',error: 'Email and OTP are required' });
+    }
+
+  const OTPI = await Forgot.findOne({ email: email, otp: otp});
+  if(!OTPI){
+      return res.status(200).json({ status:false,error: 'Invalid OTP', message: 'Invalid OTP' });   
+  } else if(OTPI){
+    const expire = OTPI.expires_at;
+    const dbExpireTime = new Date(expire);
+    const currentTime = new Date();
+
+if (dbExpireTime >= currentTime) {
+  const result = await Forgot.updateOne({ email: email }, { $set: { isVerified : true } });
+          if (result.modifiedCount > 0) {
+  return res.status(200).json({ status:true, error: 'OTP Matched', message: 'OTP Matched' });
+          } else {
+            return res.status(200).json({ status:false, error: 'Internal Error', message: 'Internal Error' });
+          }
+  } else {
+    return res.status(200).json({ status:false, error: 'OTP Expired', message: 'OTP Expired' });   
+  }
+  }
+} catch (error) {
+  console.error(error);
+  return res.status(200).json({status:false, message:'Internal Server Error', error: 'Internal server error' });
+}
+})
+
+router.post("/update_password", async (req,res)=>{
+  try {
+    const { email, password } = req.body;
+    // Validate email and password
+    if (!email) {
+      return res.status(200).json({ status:false, message:'Email is required', error: 'Email is required' });
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (!existingUser) {
+      return res.status(200).json({ status:false, message:'Email is not registered',error: 'Email is not registered' });
+    } else {
+      const OTPI = await Forgot.findOne({ email: email, isVerified : true});
+      if(OTPI){
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const result = await User.updateOne({ email: email }, { $set: { password: hashedPassword } });
+          if (result.modifiedCount > 0) {
+          return res.status(200).json({status:true, message:'Password Changed Successfully' });
+          } else {
+          return res.status(200).json({status:false, message:'Internal Server Error', error: 'Internal server error' });
+          }
+        } else {
+          return res.status(200).json({status:false, message:'OTP not Verfied', error: 'OTP not Verfied' });
+        } 
+    }
+  } catch (error) {
+    console.error(error);
+    return res.status(200).json({status:false, message:'Internal Server Error', error: 'Internal server error' });
+  }
 })
 
 router.get("/team-list", async()=>{
