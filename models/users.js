@@ -9,9 +9,24 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     trim: true,
   },
+  google_id: {
+    type:String,
+    unique: true,
+    trim: true
+  },
+  social_name: {
+    type:String
+  },
+  social_image: {
+    type:String
+  },
+  is_social: {
+    type: Boolean,
+    default: false,  
+  },
   password: {
     type: String,
-    required: true,
+    required: false,
   },
   userId: {
     type: String,

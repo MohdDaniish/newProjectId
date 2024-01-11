@@ -305,6 +305,63 @@ router.post('/updateCategory', async (req, res) => {
   }
 });
 
+router.post('/google_signup', async (req, res) => {
+  try {
+    const { email, google_id, google_name, google_image } = req.body;
+
+    const existingUser = await User.findOne({ email: email,is_social: false });
+    if (existingUser) {
+      return res.status(200).json({ status:false, message:'Email already registered',error: 'Email already registered' });
+    }
+
+    // Find the user in the database
+    const user = await User.findOne({ 
+     is_social: true, 
+     email: email
+     });
+    
+    if(!user){
+      const newUser = new User({
+        email:email,
+        userId:email,
+        google_id:   google_id,
+        social_name: google_name,
+        social_image: google_image,
+        is_social: true
+      });
+      const isave = await newUser.save();
+    if (isave) {
+      const jwtkey=process.env.JWT_SECRET
+      const payload = {
+        sub: email,
+        iat: Math.floor(Date.now() / 1000),
+      };
+      let token=jwt.sign(payload,jwtkey,{
+        expiresIn:"24h"
+      })
+      const data = { email: email, google_id:google_id, google_image: google_image, google_name: google_name, token: token };
+      return res.status(200).json({ status:true, message: 'Google Signup Successful',data:data });
+    } else {
+      res.status(200).json({status:false, message:'Signup Error', error: 'Signup Error' });
+    }
+    } else if(user){
+      // jwt Token
+      const jwtkey=process.env.JWT_SECRET
+                const payload = {
+                  sub: email,
+                  iat: Math.floor(Date.now() / 1000),
+                };
+                let token=jwt.sign(payload,jwtkey,{
+                  expiresIn:"24h"
+                })
+                const data = { email: email, google_id:user.google_id, google_image: user.social_image, google_name: user.social_name, token: token };
+                return res.status(200).json({ status:true, message: 'Login successful',data:data });
+    }
+  } catch (error) {
+    res.status(200).json({ status:false, message:'Internal server error', error: error });
+  }
+});
+
 router.post("/sendEMail", async (req,res) => {
     try {
     const { email } = req.body;
