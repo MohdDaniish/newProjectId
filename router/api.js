@@ -689,16 +689,19 @@ router.post('/aadhar_front', upload.single('image'), async (req, res) => {
     const uploadPath = path.join(__dirname, '../public/uploads', req.file.originalname);
     require('fs').writeFileSync(uploadPath, req.file.buffer);
 
-    const apiUrl = "https://sandbox.surepass.io/api/v1/pan/pan-comprehensive";
+    const apiUrl = "https://sandbox.surepass.io/api/v1/ocr/aadhaar";
 
     var options = {
       'method': 'POST',
-      'url': 'https://kyc-api.surepass.io/api/v1/ocr/aadhaar',
+      'url': 'https://sandbox.surepass.io/api/v1/ocr/aadhaar',
       'headers': {
+          "Content-Type": "application/json",
+          "Authorization":
+            "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNDkwNjYxNCwianRpIjoiMDljYzMzMzMtY2ZhNS00ZGI5LWIwMjktZDMxYzMxODQ1MTQ1IiwidHlwZSI6ImFjY2VzcyIsImlkZW50aXR5IjoiZGV2Lm5hZGNhYkBzdXJlcGFzcy5pbyIsIm5iZiI6MTcwNDkwNjYxNCwiZXhwIjoxNzA3NDk4NjE0LCJ1c2VyX2NsYWltcyI6eyJzY29wZXMiOlsidXNlciJdfX0.9LPdnXNmlg8VeMI8c8iiagF_BfWMZk8-Vb1gUSMNc4s", // Replace with your actual access token
       },
       formData: {
         'file': {
-          'value': fs.createReadStream('/path/to/file'),
+          'value': require('fs').createReadStream('public/uploads/'+req.file.originalname),
           'options': {
             'filename': 'filename',
             'contentType': null
@@ -711,7 +714,7 @@ router.post('/aadhar_front', upload.single('image'), async (req, res) => {
     const dataset = await response.json();
 
     if (dataset) {
-
+    console.log("aadhar_front_data",dataset);
     res.status(200).json({ status: false, message: 'File uploaded successfully.' });
     }
   } catch (error) {
