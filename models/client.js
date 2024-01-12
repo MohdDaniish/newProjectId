@@ -24,6 +24,26 @@ const clientSchema = new mongoose.Schema({
   masked_aadhaar: { type: String },
   pan_number: { type: String, required: true },
   phone_number: String,
+  aadhar_front:  {
+    type: String,
+    default: null,
+  },
+  aadhar_back: {
+    type: String,
+    default: null, 
+  },
+  voter_front: {
+    type: String,
+    default: null, 
+  },
+  voter_back: {
+    type: String,
+    default: null,
+  },
+  kyc_status: { 
+    type: Boolean,
+    default: false,
+  },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });

@@ -1,6 +1,5 @@
 const express = require('express');
 const fetch = require('cross-fetch');
-const cors = require('cors');
 const bcrypt = require('bcrypt');
 const User = require('../models/users');
 const UserOtp = require('../models/user_otp');
@@ -12,11 +11,9 @@ const Forgot = require('../models/forgot.js');
 const Helper = require('../helper/function');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-
-
-router.get("/dashboard", async (req,res) =>{
- 
-})
+const multer = require('multer');
+const sizeOf = require('image-size');
+const path = require('path');
 
 router.post("/register", async (req,res) =>{
     try {
@@ -563,6 +560,7 @@ try {
 
   if(is_pan){
     const pan_detail = is_pan;
+    console.log("Saved Record");
     return res.status(200).json({ status:true, message:'Pan Validated', data : pan_detail });
   }
     const apiUrl = "https://sandbox.surepass.io/api/v1/pan/pan-comprehensive";
@@ -637,6 +635,8 @@ try {
           return res.status(200).json({ status:true, message:'PAN data saved' });
         }
 
+    } else {
+      return res.status(200).json({ status:false, message:'Error while fetching PAN details', data : '' });
     }
   
   } else {
@@ -646,9 +646,78 @@ try {
 
   
 } catch(error){
-
+  return res.status(200).json({ status:false, message:error });
 }
 })
+
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 200000, // Limit file size to 200 KB
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedFileTypes = /jpeg|jpg|png/;
+    const extname = allowedFileTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedFileTypes.test(file.mimetype);
+
+    if (extname && mimetype) {
+      return cb(null, true);
+    } else {
+      return res.status(200).json({ status: false, message: 'Invalid file type. Only JPEG, JPG, and PNG are allowed.' });
+      //return cb(new Error('Invalid file type. Only JPEG, JPG, and PNG are allowed.'));
+    }
+  },
+});
+
+// Define the file upload route
+router.post('/aadhar_front', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(200).json({ status: false, message: 'No file uploaded.' });
+      throw new Error('No file uploaded.');
+    }
+
+    const dimensions = sizeOf(req.file.buffer);
+
+    // const maxWidth = 1300;
+    // const maxHeight = 1000;
+    // if (dimensions.width > maxWidth || dimensions.height > maxHeight) {
+    //   throw new Error('Image dimensions exceed the allowed size.');
+    // }
+
+    const uploadPath = path.join(__dirname, '../public/uploads', req.file.originalname);
+    require('fs').writeFileSync(uploadPath, req.file.buffer);
+
+    const apiUrl = "https://sandbox.surepass.io/api/v1/pan/pan-comprehensive";
+
+    var options = {
+      'method': 'POST',
+      'url': 'https://kyc-api.surepass.io/api/v1/ocr/aadhaar',
+      'headers': {
+      },
+      formData: {
+        'file': {
+          'value': fs.createReadStream('/path/to/file'),
+          'options': {
+            'filename': 'filename',
+            'contentType': null
+          }
+        }
+      }
+    };
+
+    const response = await fetch(apiUrl, options);
+    const dataset = await response.json();
+
+    if (dataset) {
+
+    res.status(200).json({ status: false, message: 'File uploaded successfully.' });
+    }
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
 
 
 module.exports = router;
