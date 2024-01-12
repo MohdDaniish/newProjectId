@@ -1,10 +1,13 @@
 const express = require('express');
+const fetch = require('cross-fetch');
+const cors = require('cors');
 const bcrypt = require('bcrypt');
 const User = require('../models/users');
 const UserOtp = require('../models/user_otp');
 const Business = require('../models/business');
 const Category = require('../models/category');
 const BusinessCategory = require('../models/business_category');
+const Client = require('../models/client.js');
 const Forgot = require('../models/forgot.js');
 const Helper = require('../helper/function');
 const router = express.Router();
@@ -106,6 +109,7 @@ if (dbExpireTime >= currentTime) {
       const newUser = new User({
           email:email,
           password: password,
+          google_id:'',
           userId:email
         });
         const isave = await newUser.save();
@@ -535,32 +539,116 @@ router.post("/update_password", async (req,res)=>{
   }
 })
 
-router.get("/team-list", async()=>{
+// router.post('/myBusiness', async (req, res) => {
+//   try{
+//     const iscat = await BusinessCategory.find({ business });
+//     if(iscat){
+//       return res.status(200).json({ status:true, message:'Categories', data : iscat });
+//     }
+//   } catch (error) {
+//     return res.status(200).json({ status:false, message:'error while fetching category' });
+// }
+// })
 
-})
+router.post("/validate_save_pan", async(req,res)=>{
+try {
+  const { pan } = req.body;
+  if (!pan) {
+    return res.status(200).json({ status:false, message:'PAN number is required', error: 'PAN number is required' });
+  }
 
-router.get("/level-income", async()=>{
-
-})
-
-router.get("/rank-bonus", async()=>{
-
-})
-
-router.get("/stake-list", async()=>{
+  if (Helper.validatePanNumber(pan)) {
     
+  const is_pan = await Client.findOne({ pan_number: pan});
+
+  if(is_pan){
+    const pan_detail = is_pan;
+    return res.status(200).json({ status:true, message:'Pan Validated', data : pan_detail });
+  }
+    const apiUrl = "https://sandbox.surepass.io/api/v1/pan/pan-comprehensive";
+      
+    // Data to be sent in the request body
+    const postData = {
+      id_number: pan,
+    };
+
+    // Options for the fetch request
+    const options = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization:
+          "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNDkwNjYxNCwianRpIjoiMDljYzMzMzMtY2ZhNS00ZGI5LWIwMjktZDMxYzMxODQ1MTQ1IiwidHlwZSI6ImFjY2VzcyIsImlkZW50aXR5IjoiZGV2Lm5hZGNhYkBzdXJlcGFzcy5pbyIsIm5iZiI6MTcwNDkwNjYxNCwiZXhwIjoxNzA3NDk4NjE0LCJ1c2VyX2NsYWltcyI6eyJzY29wZXMiOlsidXNlciJdfX0.9LPdnXNmlg8VeMI8c8iiagF_BfWMZk8-Vb1gUSMNc4s", // Replace with your actual access token
+      },
+      body: JSON.stringify(postData),
+    };
+
+    // Make the POST request
+    const response = await fetch(apiUrl, options);
+    const dataset = await response.json();
+
+    if (dataset) {
+      const data = dataset;
+        console.log(dataset,'datatatat');
+        const fulnamesplit = data.data.full_name_split;
+
+        // Convert the array to a string
+        const split_name = fulnamesplit.join(' ');
+
+        console.log(split_name);
+        console.log('data', data.data.aadhaar_linked);
+        const cli = new Client({
+          aadhaar_linked: data.data.aadhaar_linked,
+          city: data.data.address.city,
+          country :data.data.address.country,
+          full : data.data.address.full,
+          line_1 : data.data.address.line_1,
+          line_2 : data.data.address.line_2,
+          state : data.data.address.state,
+          street_name : data.data.address.street_name,
+          zip : data.data.address.zip,
+          client_id:data.data.client_id,
+          dob:data.data.dob,
+          pan_number:data.data.pan_number,
+          category : data.data.category,
+          dob_check : data.data.dob_check,
+          dob_verified : data.data.dob_verified,
+          email: data.data.email,
+          full_name : data.data.full_name,
+          full_name_split : split_name,
+          gender : data.data.gender,
+          input_dob : data.data.input_dob,
+          less_info : data.data.less_info,
+          masked_aadhaar : data.data.masked_aadhaar,
+          phone_number : data.data.phone_number
+        });
+
+        // Save the business to the database
+        const saved = await cli.save();
+        if(saved){
+          const is_pan = await Client.findOne({ pan_number: pan});
+        if(is_pan){
+          const pan_detail = is_pan;
+          return res.status(200).json({ status:true, message:'Pan Validated', data : pan_detail });
+        } else {
+          return res.status(200).json({ status:false, message:'Error while Validating PAN details', data : '' });
+        }
+        } else {
+          return res.status(200).json({ status:true, message:'PAN data saved' });
+        }
+
+    }
+  
+  } else {
+    return res.status(200).json({ status:false, message:`${pan} is not a valid PAN number.` });
+    console.log(`${pan} is not a valid PAN number.`);
+  }
+
+  
+} catch(error){
+
+}
 })
 
-router.get("/stake-list", async()=>{
-    
-})
-
-router.get("/pool-income", async()=>{
-    
-})
-
-router.get("/claimed", async()=>{
-    
-})
 
 module.exports = router;

@@ -10,9 +10,7 @@ const userSchema = new mongoose.Schema({
     trim: true,
   },
   google_id: {
-    type:String,
-    unique: true,
-    trim: true
+    type:String
   },
   social_name: {
     type:String

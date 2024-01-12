@@ -54,8 +54,14 @@ function generateOTP() {
     }
   }
 
+  function validatePanNumber(panNumber) {
+    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+    return panRegex.test(panNumber);
+  }
+
   module.exports = {
     generateOTP: generateOTP,
     sendVerificationEmail: sendVerificationEmail,
-    genRandomString:genRandomString
+    genRandomString:genRandomString,
+    validatePanNumber:validatePanNumber
   };
