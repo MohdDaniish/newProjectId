@@ -13,7 +13,15 @@ const businessSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    business_location: {
+    business_city: {
+        type: String,
+        required: true
+    },
+    business_state: {
+        type: String,
+        required: true
+    },
+    business_country: {
         type: String,
         required: true
     },

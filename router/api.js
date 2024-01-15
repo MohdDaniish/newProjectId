@@ -210,10 +210,10 @@ router.post('/login', async (req, res) => {
   router.post('/createBusiness', async (req, res) => {
     try {
 
-      const { user_id, business_name, business_address, business_location, business_pin, business_phone } = req.body;
+      const { user_id, business_name, business_address, business_location, business_city, business_state, business_country, business_pin, business_phone } = req.body;
 
       // Check for required fields
-      if (!user_id || !business_name || !business_address || !business_location || !business_pin || !business_phone) {
+      if (!user_id || !business_name || !business_address || !business_location || !business_pin || !business_phone || !business_city || !business_state || !business_country) {
           return res.status(200).json({ status:false, message:'All required fields must be provided.', error: 'All required fields must be provided.' });
       }
 
@@ -234,6 +234,9 @@ router.post('/login', async (req, res) => {
             user_id: req.body.user_id,
             business_name: req.body.business_name,
             business_address: req.body.business_address,
+            business_city: req.body.business_city,
+            business_state: req.body.business_state,
+            business_country: req.body.business_country,
             business_location: req.body.business_location,
             business_pin: req.body.business_pin,
             business_phone: req.body.business_phone,
@@ -673,6 +676,7 @@ const upload = multer({
 // Define the file upload route
 router.post('/aadhar_front', upload.single('image'), async (req, res) => {
   try {
+    //console.log("fjdsj",req);
     if (!req.file) {
       return res.status(200).json({ status: false, message: 'No file uploaded.' });
       throw new Error('No file uploaded.');
@@ -689,36 +693,88 @@ router.post('/aadhar_front', upload.single('image'), async (req, res) => {
     const uploadPath = path.join(__dirname, '../public/uploads', req.file.originalname);
     require('fs').writeFileSync(uploadPath, req.file.buffer);
 
-    const apiUrl = "https://sandbox.surepass.io/api/v1/ocr/aadhaar";
+    // const apiUrl = "https://sandbox.surepass.io/api/v1/ocr/aadhaar";
 
-    var options = {
-      'method': 'POST',
-      'url': 'https://sandbox.surepass.io/api/v1/ocr/aadhaar',
-      'headers': {
-          "Content-Type": "application/json",
-          "Authorization":
-            "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNDkwNjYxNCwianRpIjoiMDljYzMzMzMtY2ZhNS00ZGI5LWIwMjktZDMxYzMxODQ1MTQ1IiwidHlwZSI6ImFjY2VzcyIsImlkZW50aXR5IjoiZGV2Lm5hZGNhYkBzdXJlcGFzcy5pbyIsIm5iZiI6MTcwNDkwNjYxNCwiZXhwIjoxNzA3NDk4NjE0LCJ1c2VyX2NsYWltcyI6eyJzY29wZXMiOlsidXNlciJdfX0.9LPdnXNmlg8VeMI8c8iiagF_BfWMZk8-Vb1gUSMNc4s", // Replace with your actual access token
-      },
-      formData: {
-        'file': {
-          'value': require('fs').createReadStream('public/uploads/'+req.file.originalname),
-          'options': {
-            'filename': 'filename',
-            'contentType': null
-          }
-        }
-      }
-    };
+    // var options = {
+    //   'method': 'POST',
+    //   'url': 'https://sandbox.surepass.io/api/v1/ocr/aadhaar',
+    //   'headers': {
+    //       "Content-Type": "application/json",
+    //       "Authorization":
+    //         "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNDkwNjYxNCwianRpIjoiMDljYzMzMzMtY2ZhNS00ZGI5LWIwMjktZDMxYzMxODQ1MTQ1IiwidHlwZSI6ImFjY2VzcyIsImlkZW50aXR5IjoiZGV2Lm5hZGNhYkBzdXJlcGFzcy5pbyIsIm5iZiI6MTcwNDkwNjYxNCwiZXhwIjoxNzA3NDk4NjE0LCJ1c2VyX2NsYWltcyI6eyJzY29wZXMiOlsidXNlciJdfX0.9LPdnXNmlg8VeMI8c8iiagF_BfWMZk8-Vb1gUSMNc4s", // Replace with your actual access token
+    //   },
+    //   formData: {
+    //     'file': {
+    //       'value': require('fs').createReadStream('public/uploads/'+req.file.originalname),
+    //       'options': {
+    //         'filename': 'filename',
+    //         'contentType': null
+    //       }
+    //     }
+    //   }
+    // };
 
-    const response = await fetch(apiUrl, options);
-    const dataset = await response.json();
-
+    // const response = await fetch(apiUrl, options);
+    // const dataset = await response.json();
+      console.log("file_name",req.file.originalname);
+     
+      //const path = require('path');
+      const filePath = path.join(__dirname, '/../public', 'uploads', req.file.originalname);
+      const axios = require('axios');
+      const FormData = require('form-data');
+      const fs = require('fs');
+      let data = new FormData();
+      data.append('file', fs.createReadStream(filePath));
+      
+      let config = {
+        method: 'post',
+        maxBodyLength: Infinity,
+        url: 'https://sandbox.surepass.io/api/v1/ocr/aadhaar',
+        headers: { 
+          'Authorization': 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNDkwNjYxNCwianRpIjoiMDljYzMzMzMtY2ZhNS00ZGI5LWIwMjktZDMxYzMxODQ1MTQ1IiwidHlwZSI6ImFjY2VzcyIsImlkZW50aXR5IjoiZGV2Lm5hZGNhYkBzdXJlcGFzcy5pbyIsIm5iZiI6MTcwNDkwNjYxNCwiZXhwIjoxNzA3NDk4NjE0LCJ1c2VyX2NsYWltcyI6eyJzY29wZXMiOlsidXNlciJdfX0.9LPdnXNmlg8VeMI8c8iiagF_BfWMZk8-Vb1gUSMNc4s', 
+          ...data.getHeaders()
+        },
+        data : data
+      };
+      
+      axios.request(config)
+      .then((response) => {
+        console.log(JSON.stringify(response.data));
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  
+      
+      return
+      // var options = {
+      //   'method': 'POST',
+      //   'url': 'https://app.surepass.io/sandbox/api/v1/ocr/aadhaar',
+      //   'headers': {
+      //     "Authorization":
+      //     "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MDUzMTgxMTUsInN1YiI6ImFtYW4uc2lldDEyM0BnbWFpbC5jb20iLCJzY29wZXMiOm51bGwsInR5cGUiOiJhY2Nlc3MifQ.i7ECbNADGn-WBQXlgFPTIyWVRQN8H9LtMvsNDJeMF4o", // Replace with your actual access token
+      //   },
+      //   formData: {
+      //     'file': {
+      //       'value': fs.createReadStream(filePath),
+      //       'options': {
+      //         'filename': req.file.originalname,
+      //         'contentType': null
+      //       }
+      //     }
+      //   }
+      // };
+      axios(options, function (error, response) {
+       if (error) throw new Error(error);
+        console.log(response.body);
+      });
+    return
     if (dataset) {
     console.log("aadhar_front_data",dataset);
     res.status(200).json({ status: false, message: 'File uploaded successfully.' });
     }
   } catch (error) {
-    res.status(400).json({ error: error.message });
+   // res.status(400).json({ error: error.message });
   }
 });
 
