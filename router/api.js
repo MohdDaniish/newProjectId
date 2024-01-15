@@ -817,8 +817,10 @@ router.post('/aadhar_front', upload.single('image'), async (req, res) => {
         console.log("api dob",dob);
         if(savedFourDigitsSubstring == lastFourDigitsSubstring && dob == savedDOB){
           console.log("RESPONSE : AADHAR MATCH FRONT");
+          // updated image name in client aadhar
           res.status(200).json({ status: true, message: 'Aadhar Front Validated' });
         } else {
+          // delete uploaded image
           console("RESPONSE : AADHAR FRONT DATA DO NOT MATCHED");
           res.status(200).json({ status: false, message: 'Aadhar Front Data not Matched' });
         }
