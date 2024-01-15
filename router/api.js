@@ -222,6 +222,11 @@ router.post('/login', async (req, res) => {
           return res.status(200).json({ status:false, message:'User Not Exist', error: 'User Not Exist' });
         }
 
+        const isBiz = await Business.findOne({ email : user_id });
+        if (isBiz) {
+          return res.status(200).json({ status:false, message:'Business Already Added' });
+        }
+
         const existphone = await Business.findOne({ business_phone : business_phone });
         if (existphone) {
           return res.status(200).json({ status:false, message:'Phone number Already used', error: 'Phone number Already used' });
@@ -539,22 +544,28 @@ router.post("/update_password", async (req,res)=>{
   }
 })
 
-// router.post('/myBusiness', async (req, res) => {
-//   try{
-//     const iscat = await BusinessCategory.find({ business });
-//     if(iscat){
-//       return res.status(200).json({ status:true, message:'Categories', data : iscat });
-//     }
-//   } catch (error) {
-//     return res.status(200).json({ status:false, message:'error while fetching category' });
-// }
-// })
+router.post('/myBusiness', async (req, res) => {
+  try{
+    const { email } = req.body;
+    if (!email) {
+      return res.status(200).json({ status:false, message:'Email is required',error: 'Email is required' });
+    }
+    const isbusi = await Business.findOne({ user_id : email });
+    if(isbusi){
+      return res.status(200).json({ status:true, message:'My Business', data : isbusi });
+    } else {
+      return res.status(200).json({ status:false, message:'No Business Found', data : isbusi });
+    }
+  } catch (error) {
+    return res.status(200).json({ status:false, message:'error while fetching category' });
+}
+})
 
 router.post("/validate_save_pan", async(req,res)=>{
 try {
-  const { pan } = req.body;
-  if (!pan) {
-    return res.status(200).json({ status:false, message:'PAN number is required', error: 'PAN number is required' });
+  const { pan, mobile } = req.body;
+  if (!pan || !mobile) {
+    return res.status(200).json({ status:false, message:'PAN and Mobile number is required', error: 'PAN and Mobile number is required' });
   }
 
   if (Helper.validatePanNumber(pan)) {
@@ -621,7 +632,8 @@ try {
           input_dob : data.data.input_dob,
           less_info : data.data.less_info,
           masked_aadhaar : data.data.masked_aadhaar,
-          phone_number : data.data.phone_number
+          phone_number : data.data.phone_number,
+          mobile : mobile
         });
 
         // Save the business to the database
@@ -676,7 +688,12 @@ const upload = multer({
 // Define the file upload route
 router.post('/aadhar_front', upload.single('image'), async (req, res) => {
   try {
-    //console.log("fjdsj",req);
+    var { mobile } = req.body;
+    mobile = parseInt(mobile);
+    if (!mobile) {
+      return res.status(200).json({ status:false, message:'Mobile Number is required', error: 'Mobile Number is required' });
+    }
+
     if (!req.file) {
       return res.status(200).json({ status: false, message: 'No file uploaded.' });
       throw new Error('No file uploaded.');
@@ -689,37 +706,40 @@ router.post('/aadhar_front', upload.single('image'), async (req, res) => {
     // if (dimensions.width > maxWidth || dimensions.height > maxHeight) {
     //   throw new Error('Image dimensions exceed the allowed size.');
     // }
+    console.log("mobile",mobile);
+    const panExist = await Client.findOne({ mobile : mobile });
+    if (!panExist) {
+      return res.status(200).json({ status:false, message:'PAN number not updated'});
+    }
 
-    const uploadPath = path.join(__dirname, '../public/uploads', req.file.originalname);
+    if (panExist.aadhar_front != null) {
+      return res.status(200).json({ status:true, message:'Aadhar Front Already Uploaded And Validated'});
+    }
+    
+    const maskedAdhar = panExist.masked_aadhaar;
+    const savedDOB = panExist.dob;
+    console.log(maskedAdhar);
+   
+    const lastFourDigitsSubstring = maskedAdhar.substring(maskedAdhar.length - 4);
+    const lastFourDigitsSlice = maskedAdhar.slice(-4);
+
+// console.log("Last four digits (substring):", lastFourDigitsSubstring);
+// console.log("Last four digits (slice):", lastFourDigitsSlice);
+
+    if(maskedAdhar == null || maskedAdhar == ""){
+      return res.status(200).json({ status:false, message:'PAN details not updated'});
+    }
+    
+    // uploading aadhar image
+    var randomUid = Helper.generateRandomUid(50);
+    const extension = path.extname(req.file.originalname).toLowerCase();
+    randomUid = randomUid+extension;
+    const uploadPath = path.join(__dirname, '../public/uploads', randomUid);
     require('fs').writeFileSync(uploadPath, req.file.buffer);
 
-    // const apiUrl = "https://sandbox.surepass.io/api/v1/ocr/aadhaar";
-
-    // var options = {
-    //   'method': 'POST',
-    //   'url': 'https://sandbox.surepass.io/api/v1/ocr/aadhaar',
-    //   'headers': {
-    //       "Content-Type": "application/json",
-    //       "Authorization":
-    //         "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNDkwNjYxNCwianRpIjoiMDljYzMzMzMtY2ZhNS00ZGI5LWIwMjktZDMxYzMxODQ1MTQ1IiwidHlwZSI6ImFjY2VzcyIsImlkZW50aXR5IjoiZGV2Lm5hZGNhYkBzdXJlcGFzcy5pbyIsIm5iZiI6MTcwNDkwNjYxNCwiZXhwIjoxNzA3NDk4NjE0LCJ1c2VyX2NsYWltcyI6eyJzY29wZXMiOlsidXNlciJdfX0.9LPdnXNmlg8VeMI8c8iiagF_BfWMZk8-Vb1gUSMNc4s", // Replace with your actual access token
-    //   },
-    //   formData: {
-    //     'file': {
-    //       'value': require('fs').createReadStream('public/uploads/'+req.file.originalname),
-    //       'options': {
-    //         'filename': 'filename',
-    //         'contentType': null
-    //       }
-    //     }
-    //   }
-    // };
-
-    // const response = await fetch(apiUrl, options);
-    // const dataset = await response.json();
       console.log("file_name",req.file.originalname);
      
-      //const path = require('path');
-      const filePath = path.join(__dirname, '/../public', 'uploads', req.file.originalname);
+      const filePath = path.join(__dirname, '/../public', 'uploads', randomUid);
       const axios = require('axios');
       const FormData = require('form-data');
       const fs = require('fs');
@@ -739,36 +759,81 @@ router.post('/aadhar_front', upload.single('image'), async (req, res) => {
       
       axios.request(config)
       .then((response) => {
-        console.log(JSON.stringify(response.data));
+        const data = response.data;
+        // const data = {
+        //   "data": {
+        //     "client_id": "ocr_aadhaar_mcjwfqCDnaerLnrySzwJ",
+        //     "ocr_fields": [
+        //       {
+        //         "document_type": "aadhaar_front_bottom",
+        //         "full_name": {
+        //           "value": "Mohd Danish",
+        //           "confidence": 91
+        //         },
+        //         "gender": {
+        //           "value": "M",
+        //           "confidence": 91
+        //         },
+        //         "mother_name": {
+        //           "value": "",
+        //           "confidence": 0
+        //         },
+        //         "father_name": {
+        //           "value": "",
+        //           "confidence": 0
+        //         },
+        //         "dob": {
+        //           "value": "1991-09-21",
+        //           "confidence": 91,
+        //           "yob": false
+        //         },
+        //         "aadhaar_number": {
+        //           "value": "598078976373",
+        //           "confidence": 91,
+        //           "is_masked": false,
+        //           "input_validation": false
+        //         },
+        //         "image_url": null,
+        //         "uniqueness_id": "0f529296e82dbe925be0811802f856a8a0be39b5d7498f0c3d0e3bec954b5c7a"
+        //       }
+        //     ]
+        //   },
+        //   "status_code": 200,
+        //   "success": true,
+        //   "message": null,
+        //   "message_code": "success"
+        // };
+        const document_type = data.data.ocr_fields[0].document_type;
+        if(document_type == "aadhaar_front_bottom"){
+        const aadhar_number = data.data.ocr_fields[0].aadhaar_number.value;
+        const dob = data.data.ocr_fields[0].dob.value;
+        console.log("aadhar_number",data.data.ocr_fields[0].aadhaar_number.value);
+        if(aadhar_number.length == 12){
+        const savedFourDigitsSubstring = aadhar_number.substring(aadhar_number.length - 4);
+        const savedFourDigitsSlice = aadhar_number.slice(-4);
+        console.log("saved aadhar",savedFourDigitsSubstring);
+        console.log("api aadhar",lastFourDigitsSubstring);
+        console.log("saved dob",savedDOB);
+        console.log("api dob",dob);
+        if(savedFourDigitsSubstring == lastFourDigitsSubstring && dob == savedDOB){
+          console.log("RESPONSE : AADHAR MATCH FRONT");
+          res.status(200).json({ status: true, message: 'Aadhar Front Validated' });
+        } else {
+          console("RESPONSE : AADHAR FRONT DATA DO NOT MATCHED");
+          res.status(200).json({ status: false, message: 'Aadhar Front Data not Matched' });
+        }
+        }
+      } else {
+        console("RESPONSE : Invalid Aadhar Front");
+        res.status(200).json({ status: false, message: 'Invalid Aaadhar Front' });
+      }
+
       })
       .catch((error) => {
         console.log(error);
       });
   
       
-      return
-      // var options = {
-      //   'method': 'POST',
-      //   'url': 'https://app.surepass.io/sandbox/api/v1/ocr/aadhaar',
-      //   'headers': {
-      //     "Authorization":
-      //     "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MDUzMTgxMTUsInN1YiI6ImFtYW4uc2lldDEyM0BnbWFpbC5jb20iLCJzY29wZXMiOm51bGwsInR5cGUiOiJhY2Nlc3MifQ.i7ECbNADGn-WBQXlgFPTIyWVRQN8H9LtMvsNDJeMF4o", // Replace with your actual access token
-      //   },
-      //   formData: {
-      //     'file': {
-      //       'value': fs.createReadStream(filePath),
-      //       'options': {
-      //         'filename': req.file.originalname,
-      //         'contentType': null
-      //       }
-      //     }
-      //   }
-      // };
-      axios(options, function (error, response) {
-       if (error) throw new Error(error);
-        console.log(response.body);
-      });
-    return
     if (dataset) {
     console.log("aadhar_front_data",dataset);
     res.status(200).json({ status: false, message: 'File uploaded successfully.' });

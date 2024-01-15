@@ -22,8 +22,9 @@ const clientSchema = new mongoose.Schema({
   input_dob: { type: String },
   less_info: { type: Boolean },
   masked_aadhaar: { type: String },
-  pan_number: { type: String, required: true },
+  pan_number: { type: String, unique: true, required: true },
   phone_number: String,
+  mobile: { type : String, unique: true, required: true },
   aadhar_front:  {
     type: String,
     default: null,

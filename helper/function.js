@@ -1,6 +1,14 @@
 
 const nodemailer = require('nodemailer');
 const emailConfig = require('../emailconfig');
+const crypto = require('crypto');
+
+// Function to generate a random UID of a specified length
+function generateRandomUid(length) {
+  const bytes = crypto.randomBytes(Math.ceil(length / 2));
+  return bytes.toString('hex').slice(0, length);
+}
+
 
 function generateOTP() {
     // Generate a random 6-digit number
@@ -63,5 +71,6 @@ function generateOTP() {
     generateOTP: generateOTP,
     sendVerificationEmail: sendVerificationEmail,
     genRandomString:genRandomString,
-    validatePanNumber:validatePanNumber
+    validatePanNumber:validatePanNumber,
+    generateRandomUid:generateRandomUid
   };
