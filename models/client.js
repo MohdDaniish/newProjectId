@@ -25,6 +25,10 @@ const clientSchema = new mongoose.Schema({
   pan_number: { type: String, unique: true, required: true },
   phone_number: String,
   mobile: { type : String, unique: true, required: true },
+  pan_ocr:  {
+    type: String,
+    default: null,
+  },
   aadhar_front:  {
     type: String,
     default: null,

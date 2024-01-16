@@ -69,7 +69,7 @@ function generateOTP() {
 
   function deleteFileWithRetry(path, maxRetries = 3, delay = 1000) {
     function attemptDeletion(retriesLeft) {
-      fs.unlink(path, (err) => {
+      require('fs').unlink(path, (err) => {
         if (err) {
           if (retriesLeft > 0) {
             console.error(`Error deleting ${path}. Retrying... (${retriesLeft} retries left)`);
