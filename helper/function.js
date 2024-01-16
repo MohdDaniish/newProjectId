@@ -67,10 +67,30 @@ function generateOTP() {
     return panRegex.test(panNumber);
   }
 
+  function deleteFileWithRetry(path, maxRetries = 3, delay = 1000) {
+    function attemptDeletion(retriesLeft) {
+      fs.unlink(path, (err) => {
+        if (err) {
+          if (retriesLeft > 0) {
+            console.error(`Error deleting ${path}. Retrying... (${retriesLeft} retries left)`);
+            setTimeout(() => attemptDeletion(retriesLeft - 1), delay);
+          } else {
+            console.error(`Failed to delete ${path} after multiple attempts: ${err.message}`);
+          }
+        } else {
+          console.log(`Successfully deleted ${path}`);
+        }
+      });
+    }
+  
+    attemptDeletion(maxRetries);
+  }
+
   module.exports = {
     generateOTP: generateOTP,
     sendVerificationEmail: sendVerificationEmail,
     genRandomString:genRandomString,
     validatePanNumber:validatePanNumber,
-    generateRandomUid:generateRandomUid
+    generateRandomUid:generateRandomUid,
+    deleteFileWithRetry:deleteFileWithRetry
   };
