@@ -227,10 +227,10 @@ router.post('/login', async (req, res) => {
           return res.status(200).json({ status:false, message:'Business Already Added' });
         }
 
-        const existphone = await Business.findOne({ business_phone : business_phone });
-        if (existphone) {
-          return res.status(200).json({ status:false, message:'Phone number Already used', error: 'Phone number Already used' });
-        }
+        // const existphone = await Business.findOne({ business_phone : business_phone });
+        // if (existphone) {
+        //   return res.status(200).json({ status:false, message:'Phone number Already used', error: 'Phone number Already used' });
+        // }
         // Generate a random business code
         const businessCode = Helper.genRandomString();
 
@@ -545,13 +545,30 @@ router.post("/update_password", async (req,res)=>{
   }
 })
 
+router.post('/findBusiness', async (req, res) => {
+  try{
+    const { business_code } = req.body;
+    if (!business_code) {
+      return res.status(200).json({ status:false, message:'Business Code is required',error: 'Business Code is required' });
+    }
+    const isbusi = await Business.findOne({ business_code : business_code });
+    if(isbusi){
+      return res.status(200).json({ status:true, message:'My Business', data : isbusi });
+    } else {
+      return res.status(200).json({ status:false, message:'No Business Found', data : isbusi });
+    }
+  } catch (error) {
+    return res.status(200).json({ status:false, message:'error while fetching Business' });
+}
+})
+
 router.post('/myBusiness', async (req, res) => {
   try{
     const { email } = req.body;
     if (!email) {
       return res.status(200).json({ status:false, message:'Email is required',error: 'Email is required' });
     }
-    const isbusi = await Business.findOne({ user_id : email });
+    const isbusi = await Business.find({ user_id : email }).sort({ createdAt: -1 });
     if(isbusi){
       return res.status(200).json({ status:true, message:'My Business', data : isbusi });
     } else {

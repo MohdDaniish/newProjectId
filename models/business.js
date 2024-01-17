@@ -39,7 +39,6 @@ const businessSchema = new mongoose.Schema({
     business_phone: {
         type: String,
         required: true,
-        unique: true,
         validate: {
             validator: function(value) {
                 return /^\d{10}$/.test(value);

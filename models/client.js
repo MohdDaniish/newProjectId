@@ -45,6 +45,10 @@ const clientSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  aadhaar_validation: { 
+    type: Boolean,
+    default: false,
+  },
   kyc_status: { 
     type: Boolean,
     default: false,
