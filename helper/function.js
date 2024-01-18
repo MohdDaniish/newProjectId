@@ -86,11 +86,22 @@ function generateOTP() {
     attemptDeletion(maxRetries);
   }
 
+  function isValidAadharNumber(aadharNumber) {
+    const aadharRegex = /^\d{12}$/;
+  
+    if (!aadharRegex.test(aadharNumber)) {
+      return false;
+    }
+  
+    return true;
+  }
+
   module.exports = {
     generateOTP: generateOTP,
     sendVerificationEmail: sendVerificationEmail,
     genRandomString:genRandomString,
     validatePanNumber:validatePanNumber,
     generateRandomUid:generateRandomUid,
-    deleteFileWithRetry:deleteFileWithRetry
+    deleteFileWithRetry:deleteFileWithRetry,
+    isValidAadharNumber:isValidAadharNumber
   };

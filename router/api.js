@@ -703,6 +703,99 @@ const upload = multer({
   },
 });
 
+router.post("/validate_aadhaar", async(req,res)=>{
+  try {
+    const { aadhar, mobile } = req.body;
+    if (!aadhar || !mobile) {
+      return res.status(200).json({ status:false, message:'Aadhar Number and Mobile number is required' });
+    }
+  
+    if (Helper.isValidAadharNumber(aadhar)) {
+      
+    const is_pan = await Client.findOne({ mobile: mobile});
+
+    if(!is_pan){
+      return res.status(200).json({ status:false, message:'Pan Verification is Pending Or User Not Exist' }); 
+    }
+
+    const is_aadh = await Client.findOne({ aadhaar_validation: true, mobile: mobile});
+    
+    if(is_aadh){
+      const _detail = is_aadh;
+      console.log("Saved Record");
+      return res.status(200).json({ status:true, message:'Aadhar Already Validated', data : _detail });
+    }
+    
+    const maskedAdhar = is_pan.masked_aadhaar;
+   
+    const lastFourDigitsSubstring = maskedAdhar.substring(maskedAdhar.length - 4);
+    const lastFourDigitsSlice = maskedAdhar.slice(-4);
+
+    const givenDigitsSubstring = aadhar.substring(aadhar.length - 4);
+    console.log("Given Aadhar FOur",givenDigitsSubstring);
+    console.log("Saved Aadhar FOur",lastFourDigitsSubstring);
+
+    if(lastFourDigitsSubstring != givenDigitsSubstring){
+      return res.status(200).json({ status:false, message:'Your Aadhar Not Match with PAN details' }); 
+    }
+
+      const apiUrl = "https://sandbox.surepass.io/api/v1/aadhaar-validation/aadhaar-validation";
+        
+      // Data to be sent in the request body
+      const postData = {
+        id_number: aadhar,
+      };
+  
+      // Options for the fetch request
+      const options = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization:
+            "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNDkwNjYxNCwianRpIjoiMDljYzMzMzMtY2ZhNS00ZGI5LWIwMjktZDMxYzMxODQ1MTQ1IiwidHlwZSI6ImFjY2VzcyIsImlkZW50aXR5IjoiZGV2Lm5hZGNhYkBzdXJlcGFzcy5pbyIsIm5iZiI6MTcwNDkwNjYxNCwiZXhwIjoxNzA3NDk4NjE0LCJ1c2VyX2NsYWltcyI6eyJzY29wZXMiOlsidXNlciJdfX0.9LPdnXNmlg8VeMI8c8iiagF_BfWMZk8-Vb1gUSMNc4s", // Replace with your actual access token
+        },
+        body: JSON.stringify(postData),
+      };
+  
+      // Make the POST request
+      const response = await fetch(apiUrl, options);
+      const dataset = await response.json();
+  
+      if (dataset) {
+        const data = dataset;
+          console.log(dataset,'datatatat');
+  
+          const result = await Client.updateOne({ mobile: mobile }, { $set: {
+            aadhaar_number: data.data.aadhaar_number,
+            aadhaar_validation : true
+            } });
+          if (result.modifiedCount > 0) {
+            const is_aadha = await Client.findOne({ mobile: mobile});
+          if(is_aadha){
+            const _details = is_aadha;
+            return res.status(200).json({ status:true, message:'Aadhaar Validated', data : _details });
+          } else {
+            return res.status(200).json({ status:false, message:'Error while Validating Aadhaar details', data : '' });
+          }
+          } else {
+            return res.status(200).json({ status:true, message:'Aadhaar data saved' });
+          }
+  
+      } else {
+        return res.status(200).json({ status:false, message:'Error while fetching Aadhaar details', data : '' });
+      }
+    
+    } else {
+      console.log(`${aadhar} is not a valid Aadhaar number.`);
+      return res.status(200).json({ status:false, message:`${aadhar} is not a valid Aadhaar number.` });
+      
+    }
+  } catch(error){
+    console.log(error)
+    return res.status(200).json({ status:false, message:error });
+  }
+  })
+
 // Define the file upload route
 router.post('/aadhar_front', upload.single('image'), async (req, res) => {
   try {
@@ -779,49 +872,7 @@ router.post('/aadhar_front', upload.single('image'), async (req, res) => {
       .then(async (response) => {
         const data = response.data;
         console.log("response data",data);
-        // const data = {
-        //   "data": {
-        //     "client_id": "ocr_aadhaar_mcjwfqCDnaerLnrySzwJ",
-        //     "ocr_fields": [
-        //       {
-        //         "document_type": "aadhaar_front_bottom",
-        //         "full_name": {
-        //           "value": "Mohd Danish",
-        //           "confidence": 91
-        //         },
-        //         "gender": {
-        //           "value": "M",
-        //           "confidence": 91
-        //         },
-        //         "mother_name": {
-        //           "value": "",
-        //           "confidence": 0
-        //         },
-        //         "father_name": {
-        //           "value": "",
-        //           "confidence": 0
-        //         },
-        //         "dob": {
-        //           "value": "1991-09-21",
-        //           "confidence": 91,
-        //           "yob": false
-        //         },
-        //         "aadhaar_number": {
-        //           "value": "598078976373",
-        //           "confidence": 91,
-        //           "is_masked": false,
-        //           "input_validation": false
-        //         },
-        //         "image_url": null,
-        //         "uniqueness_id": "0f529296e82dbe925be0811802f856a8a0be39b5d7498f0c3d0e3bec954b5c7a"
-        //       }
-        //     ]
-        //   },
-        //   "status_code": 200,
-        //   "success": true,
-        //   "message": null,
-        //   "message_code": "success"
-        // };
+       
         const document_type = data.data.ocr_fields[0].document_type;
         if(document_type == "aadhaar_front_bottom"){
         const aadhar_number = data.data.ocr_fields[0].aadhaar_number.value;
@@ -851,6 +902,11 @@ router.post('/aadhar_front', upload.single('image'), async (req, res) => {
           Helper.deleteFileWithRetry(imagePath);
           res.status(200).json({ status: false, message: 'Aadhar Front Data not Matched' });
         }
+        } else {
+          console.log("RESPONSE : AADHAR FRONT DATA DO NOT MATCHED");
+          const imagePath = path.join(__dirname, '../public/uploads/aadhaar/front',randomUid );
+          Helper.deleteFileWithRetry(imagePath);
+          res.status(200).json({ status: false, message: 'Aadhar Front Data not Matched' });
         }
       } else {
         console.log("RESPONSE : Invalid Aadhar Front");
@@ -968,11 +1024,15 @@ router.post('/aadhar_back', upload.single('image'), async (req, res) => {
         } else {
           // delete uploaded image
           const imagePath = path.join(__dirname, '../public/uploads/aadhaar/back',randomUid );
-          console.log(imagePath);
           Helper.deleteFileWithRetry(imagePath);
           console.log("RESPONSE : AADHAR BACK DATA DO NOT MATCHED");
           res.status(200).json({ status: false, message: 'Aadhar Back Data not Matched' });
         }
+        } else {
+          const imagePath = path.join(__dirname, '../public/uploads/aadhaar/back',randomUid );
+          Helper.deleteFileWithRetry(imagePath);
+          console.log("RESPONSE : AADHAR BACK DATA DO NOT MATCHED");
+          res.status(200).json({ status: false, message: 'Aadhar Back Data not Matched' });
         }
       } else {
         console.log("RESPONSE : Invalid Aadhar Back");
@@ -1021,30 +1081,20 @@ router.post('/pan_ocr', upload.single('image'), async (req, res) => {
       return res.status(200).json({ status:true, message:'PAN Already Uploaded And Validated'});
     }
     
-    const maskedAdhar = panExist.masked_aadhaar;
+    const savedfullname = panExist.full_name;
     const savedDOB = panExist.dob;
-    console.log(maskedAdhar);
-   
-    const lastFourDigitsSubstring = maskedAdhar.substring(maskedAdhar.length - 4);
-    const lastFourDigitsSlice = maskedAdhar.slice(-4);
-
-// console.log("Last four digits (substring):", lastFourDigitsSubstring);
-// console.log("Last four digits (slice):", lastFourDigitsSlice);
-
-    if(maskedAdhar == null || maskedAdhar == ""){
-      return res.status(200).json({ status:false, message:'PAN details not updated'});
-    }
+    const savedpan = panExist.pan_number;
     
     // uploading aadhar image
     var randomUid = Helper.generateRandomUid(50);
     const extension = path.extname(req.file.originalname).toLowerCase();
     randomUid = randomUid+extension;
-    const uploadPath = path.join(__dirname, '../public/uploads/aadhaar/back', randomUid);
+    const uploadPath = path.join(__dirname, '../public/uploads/pan', randomUid);
     require('fs').writeFileSync(uploadPath, req.file.buffer);
 
       console.log("file_name",req.file.originalname);
      
-      const filePath = path.join(__dirname, '/../public', 'uploads/aadhaar/back', randomUid);
+      const filePath = path.join(__dirname, '/../public', 'uploads/pan', randomUid);
       const axios = require('axios');
       const FormData = require('form-data');
       const fs = require('fs');
@@ -1054,7 +1104,7 @@ router.post('/pan_ocr', upload.single('image'), async (req, res) => {
       let config = {
         method: 'post',
         maxBodyLength: Infinity,
-        url: 'https://sandbox.surepass.io/api/v1/ocr/aadhaar',
+        url: 'https://sandbox.surepass.io/api/v1/ocr/pan',
         headers: { 
           'Authorization': 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNDkwNjYxNCwianRpIjoiMDljYzMzMzMtY2ZhNS00ZGI5LWIwMjktZDMxYzMxODQ1MTQ1IiwidHlwZSI6ImFjY2VzcyIsImlkZW50aXR5IjoiZGV2Lm5hZGNhYkBzdXJlcGFzcy5pbyIsIm5iZiI6MTcwNDkwNjYxNCwiZXhwIjoxNzA3NDk4NjE0LCJ1c2VyX2NsYWltcyI6eyJzY29wZXMiOlsidXNlciJdfX0.9LPdnXNmlg8VeMI8c8iiagF_BfWMZk8-Vb1gUSMNc4s', 
           ...data.getHeaders()
@@ -1068,48 +1118,55 @@ router.post('/pan_ocr', upload.single('image'), async (req, res) => {
         console.log("response data",data);
         
         const document_type = data.data.ocr_fields[0].document_type;
-        if(document_type == "aadhaar_back"){
-        const aadhar_number = data.data.ocr_fields[0].aadhaar_number.value;
-        console.log("aadhar_number",data.data.ocr_fields[0].aadhaar_number.value);
-        if(aadhar_number.length == 12){
-        const savedFourDigitsSubstring = aadhar_number.substring(aadhar_number.length - 4);
-        const savedFourDigitsSlice = aadhar_number.slice(-4);
-        console.log("saved aadhar",savedFourDigitsSubstring);
-        console.log("api aadhar",lastFourDigitsSubstring);
-        console.log("saved dob",savedDOB);
+        if(document_type == "pan"){
+        const pan_number = data.data.ocr_fields[0].pan_number.value;
+        console.log("pan",pan_number);
+        const pan_full_name = data.data.ocr_fields[0].full_name.value;
+        const dob = data.data.ocr_fields[0].dob.value;
+
+        // changing date format to 1990-01-01
+        const dateString = dob;
+        const parts = dateString.split('/');
+        const year = parts[2];
+        const month = parts[0];
+        const day = parts[1];
+        const pan_dob = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+
+        if(savedfullname == pan_full_name && pan_number == savedpan && savedDOB == pan_dob){
         
-        if(savedFourDigitsSubstring == lastFourDigitsSubstring){
-          console.log("RESPONSE : AADHAR MATCH BACK");
+          console.log("RESPONSE : PAN Image is Valid");
           // updated image name in client aadhar
-          const result = await Client.updateOne({ mobile: mobile }, { $set: { aadhar_back: randomUid } });
+          const result = await Client.updateOne({ mobile: mobile }, { $set: { pan_ocr: randomUid } });
           if (result.modifiedCount > 0) {
-          res.status(200).json({ status: true, message: 'Aadhar Back Validated' });
+          res.status(200).json({ status: true, message: 'PAN Image is Valid' });
           } else {
-          res.status(200).json({ status: false, message: 'Error While Validating Aadhar Back' });  
+          res.status(200).json({ status: false, message: 'Error While Validating PAN ' });  
           }
         } else {
           // delete uploaded image
-          const imagePath = path.join(__dirname, '../public/uploads/aadhaar/back',randomUid );
+          const imagePath = path.join(__dirname, '../public/uploads/pan',randomUid );
           console.log(imagePath);
           Helper.deleteFileWithRetry(imagePath);
-          console.log("RESPONSE : AADHAR BACK DATA DO NOT MATCHED");
-          res.status(200).json({ status: false, message: 'Aadhar Back Data not Matched' });
+          console.log("RESPONSE : PAN DATA DO NOT MATCHED");
+          res.status(200).json({ status: false, message: 'PAN Data not Matched' });
         }
-        }
+       
       } else {
-        console.log("RESPONSE : Invalid Aadhar Back");
-        const imagePath = path.join(__dirname, '../public/uploads/aadhaar/back',randomUid );
+        console.log("RESPONSE : Invalid PAN image");
+        const imagePath = path.join(__dirname, '../public/uploads/pan',randomUid );
         console.log(imagePath);
         Helper.deleteFileWithRetry(imagePath);
       }
 
       })
       .catch((error) => {
-        res.status(200).json({ status: false, message: 'Invalid Aadhar Back Image' });
+        console.log(error)
+        res.status(200).json({ status: false, message: 'Invalid PAN Image' });
       });
   
   } catch (error) {
-    res.status(200).json({ status: false, message: 'Invalid Aadhar Back Image' });
+    console.log(error)
+    res.status(200).json({ status: false, message: 'Invalid PAN Image' });
   }
 });
 
