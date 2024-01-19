@@ -1170,4 +1170,74 @@ router.post('/pan_ocr', upload.single('image'), async (req, res) => {
   }
 });
 
+router.post("/generate_otp", async(req,res)=>{
+  try {
+    const { mobile, aadhar } = req.body;
+    if (!mobile || !aadhar) {
+      return res.status(200).json({ status:false, message:'Aadhar Number and Mobile number is required' });
+    }
+  
+    if (Helper.isValidAadharNumber(aadhar)) {
+      
+      const is_pan = await Client.findOne({ mobile: mobile});
+
+      if(!is_pan){
+        return res.status(200).json({ status:false, message:'Pan Verification is Pending Or User Not Exist' }); 
+      }
+  
+      const is_aadh = await Client.findOne({ aadhaar_validation: true, mobile: mobile});
+      
+      if(!is_aadh){
+        return res.status(200).json({ status:false, message:'Aadhar Validation is not complete' });
+      }
+    const savedAdhar = is_pan.aadhaar_number;
+
+    if(savedAdhar != aadhar){
+      return res.status(200).json({ status:false, message:'Aadhar Not Matched with our record' });
+    }
+ 
+
+      const apiUrl = "https://sandbox.surepass.io/api/v1/aadhaar-v2/generate-otp";
+        
+      // Data to be sent in the request body
+      const postData = {
+        id_number: aadhar,
+      };
+  
+      // Options for the fetch request
+      const options = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization:
+            "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNDkwNjYxNCwianRpIjoiMDljYzMzMzMtY2ZhNS00ZGI5LWIwMjktZDMxYzMxODQ1MTQ1IiwidHlwZSI6ImFjY2VzcyIsImlkZW50aXR5IjoiZGV2Lm5hZGNhYkBzdXJlcGFzcy5pbyIsIm5iZiI6MTcwNDkwNjYxNCwiZXhwIjoxNzA3NDk4NjE0LCJ1c2VyX2NsYWltcyI6eyJzY29wZXMiOlsidXNlciJdfX0.9LPdnXNmlg8VeMI8c8iiagF_BfWMZk8-Vb1gUSMNc4s", // Replace with your actual access token
+        },
+        body: JSON.stringify(postData),
+      };
+  
+      // Make the POST request
+      const response = await fetch(apiUrl, options);
+      const dataset = await response.json();
+  
+      if (dataset) {
+        const data = dataset;
+          console.log(dataset,'datatatat');
+          if(data.data.otp_sent == true && data.data.status == "generate_otp_success"){
+            return res.status(200).json({ status:true, message: 'Aadhaar OTP sent to your Mobile' });
+          }
+      } else {
+        return res.status(200).json({ status:false, message:'Error while Generating Aadhaar OTP' });
+      }
+    
+    } else {
+      console.log(`${aadhar} is not a valid Aadhaar number.`);
+      return res.status(200).json({ status:false, message:`${aadhar} is not a valid Aadhaar number.` });
+      
+    }
+  } catch(error){
+    console.log(error)
+    return res.status(200).json({ status:false, message:error });
+  }
+  })
+
 module.exports = router;
