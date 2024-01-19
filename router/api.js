@@ -14,6 +14,7 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const sizeOf = require('image-size');
 const path = require('path');
+const Aadhar = require('../models/aadhaar_detail.js');
 
 router.post("/register", async (req,res) =>{
     try {
@@ -669,11 +670,11 @@ try {
         }
 
     } else {
-      return res.status(200).json({ status:false, message:'Error while fetching PAN details', data : '' });
+      return res.status(200).json({ status:false, message:'Error while fetching PAN details', data : 'Invalid PAN' });
     }
   
   } else {
-    return res.status(200).json({ status:false, message:`${pan} is not a valid PAN number.` });
+    return res.status(200).json({ status:false, message:`${pan} is not a valid PAN number.`});
     console.log(`${pan} is not a valid PAN number.`);
   }
 
@@ -1223,7 +1224,12 @@ router.post("/generate_otp", async(req,res)=>{
         const data = dataset;
           console.log(dataset,'datatatat');
           if(data.data.otp_sent == true && data.data.status == "generate_otp_success"){
-            return res.status(200).json({ status:true, message: 'Aadhaar OTP sent to your Mobile' });
+            const result = await Client.updateOne({ mobile: mobile,aadhaar_number:aadhar }, { $set: {
+              aadhaar_client_id: data.data.client_id
+              } });
+            if (result.modifiedCount > 0) {
+            return res.status(200).json({ status:true, message: 'Aadhaar OTP sent to your Mobile', data : data.data.client_id });
+            }
           }
       } else {
         return res.status(200).json({ status:false, message:'Error while Generating Aadhaar OTP' });
@@ -1239,5 +1245,102 @@ router.post("/generate_otp", async(req,res)=>{
     return res.status(200).json({ status:false, message:error });
   }
   })
+ 
+  router.post("/submit_otp", async(req,res)=>{
+    try {
+      const { client_id, otp } = req.body;
+      if (!client_id || !otp) {
+        return res.status(200).json({ status:false, message:'Client Id and OTP is required' });
+      }
 
+      const checkk = await Client.findOne({ aadhaar_client_id: client_id, aadhaar_verification : true});
+      if(checkk){
+      return res.status(200).json({ status:true, message:'Aadhaar OTP Validation Already Completed', data : checkk });  
+      }
+    
+      if (typeof otp === 'number' && otp.length == 6) {
+        const is_pan = await Client.findOne({ aadhaar_client_id: client_id});
+  
+        if(!is_pan){
+          return res.status(200).json({ status:false, message:'Invalid Client Id' }); 
+        }
+      
+        const apiUrl = "https://sandbox.surepass.io/api/v1/aadhaar-v2/submit-otp";
+        // Data to be sent in the request body
+        const postData = {
+          client_id: client_id,
+          otp : otp
+        };
+    
+        // Options for the fetch request
+        const options = {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization:
+              "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNDkwNjYxNCwianRpIjoiMDljYzMzMzMtY2ZhNS00ZGI5LWIwMjktZDMxYzMxODQ1MTQ1IiwidHlwZSI6ImFjY2VzcyIsImlkZW50aXR5IjoiZGV2Lm5hZGNhYkBzdXJlcGFzcy5pbyIsIm5iZiI6MTcwNDkwNjYxNCwiZXhwIjoxNzA3NDk4NjE0LCJ1c2VyX2NsYWltcyI6eyJzY29wZXMiOlsidXNlciJdfX0.9LPdnXNmlg8VeMI8c8iiagF_BfWMZk8-Vb1gUSMNc4s", // Replace with your actual access token
+          },
+          body: JSON.stringify(postData),
+        };
+    
+        // Make the POST request
+        const response = await fetch(apiUrl, options);
+        const dataset = await response.json();
+    
+        if (dataset) {
+          const data = dataset;
+            console.log(dataset,'datatatat');
+            if(data.data.message_code == "success" && data.data.success == true){
+              const cli = new Aadhar({
+                client_id: data.data.client_id,
+                full_name :data.data.full_name,
+                aadhaar_number : data.data.aadhaar_number,
+                dob : data.data.dob,
+                gender : data.data.gender,
+                country : data.data.address.country,
+                dist : data.data.address.street_name,
+                state : data.data.address.state,
+                po : data.data.address.po,
+                loc : data.data.address.loc,
+                vtc : data.data.address.vtc,
+                subdist : data.data.address.subdist,
+                street : data.data.address.street,
+                house : data.data.address.house,
+                landmark : data.data.address.landmark,
+                face_status:data.data.face_status,
+                face_score:data.data.face_score,
+                zip:data.data.zip,
+                profile_image : data.data.profile_image,
+                has_image : data.data.has_image,
+                raw_xml : data.data.raw_xml,
+                zip_data: data.data.zip_data,
+                care_of : data.data.care_of,
+                uniqueness_id : data.data.uniqueness_id
+              });
+              // Save the business to the database
+              const saved = await cli.save();
+              if(saved){
+                const result = await Client.updateOne({ aadhaar_client_id:client_id }, { $set: {
+                  aadhaar_verification: true
+                  } });
+                if (result.modifiedCount > 0) {
+              return res.status(200).json({ status:true, message:'Aadhar OTP Validation Success', data : data }); 
+                }
+              }
+            } else {
+              return res.status(200).json({ status:false, message:'Error while Verifying OTP', data : data });
+            }
+        } else {
+          return res.status(200).json({ status:false, message:'Error while Generating Aadhaar OTP' });
+        }
+      
+      } else {
+        console.log(`${otp} is not a valid number.`);
+        return res.status(200).json({ status:false, message:`${otp} is not a valid number.` });
+      }
+    } catch(error){
+      console.log(error)
+      return res.status(200).json({ status:false, message:error });
+    }
+    })  
 module.exports = router;
