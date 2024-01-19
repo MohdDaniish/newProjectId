@@ -1258,7 +1258,7 @@ router.post("/generate_otp", async(req,res)=>{
       return res.status(200).json({ status:true, message:'Aadhaar OTP Validation Already Completed', data : checkk });  
       }
     
-      if (typeof otp === 'number' && otp.length == 6) {
+      if (typeof otp === 'number' && otp.toString().length == 6) {
         const is_pan = await Client.findOne({ aadhaar_client_id: client_id});
   
         if(!is_pan){
