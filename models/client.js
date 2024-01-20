@@ -61,6 +61,30 @@ const clientSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  voter_validation:{
+    type: Boolean,
+    default: false,
+  },
+  voter_ocr:  {
+    type: String,
+    default: null,
+  },
+  license_validation:{
+    type: Boolean,
+    default: false,
+  },
+  license_ocr:  {
+    type: String,
+    default: null,
+  },
+  passport_validation:{
+    type: Boolean,
+    default: false,
+  },
+  passport_ocr:  {
+    type: String,
+    default: null,
+  },
   kyc_status: { 
     type: Boolean,
     default: false,

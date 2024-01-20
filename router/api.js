@@ -15,6 +15,7 @@ const multer = require('multer');
 const sizeOf = require('image-size');
 const path = require('path');
 const Aadhar = require('../models/aadhaar_detail.js');
+const voter = require('../controller/voter.js');
 
 router.post("/register", async (req,res) =>{
     try {
@@ -1246,7 +1247,7 @@ router.post("/generate_otp", async(req,res)=>{
   }
   })
  
-  router.post("/submit_otp", async(req,res)=>{
+router.post("/submit_otp", async(req,res)=>{
     try {
       const { client_id, otp } = req.body;
       if (!client_id || !otp) {
@@ -1292,6 +1293,7 @@ router.post("/generate_otp", async(req,res)=>{
             console.log(dataset,'datatatat');
             if(data.data.message_code == "success" && data.data.success == true){
               const cli = new Aadhar({
+                mobile:is_pan.mobile,
                 client_id: data.data.client_id,
                 full_name :data.data.full_name,
                 aadhaar_number : data.data.aadhaar_number,
@@ -1342,5 +1344,16 @@ router.post("/generate_otp", async(req,res)=>{
       console.log(error)
       return res.status(200).json({ status:false, message:error });
     }
-    })  
+  })  
+
+router.post("/voter_id", async(req,res)=>{
+    try {
+    const resp = await voter.votervalidation(req,res);
+    return resp
+    } catch(error){
+      console.log(error)
+      return res.status(200).json({ status:false, message:error });
+    }
+})  
+
 module.exports = router;

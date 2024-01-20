@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const aadharSchema = new mongoose.Schema({
+  mobile: { type: String },
   client_id: { type: String },
   full_name: { type: String },
   aadhaar_number: { type: String },

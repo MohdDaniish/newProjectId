@@ -96,6 +96,57 @@ function generateOTP() {
     return true;
   }
 
+  function calculateStringSimilarity(str1, str2) {
+    const longerStr = (str1.length > str2.length) ? str1 : str2;
+    const shorterStr = (str1.length > str2.length) ? str2 : str1;
+    const longerLength = longerStr.length;
+
+    if (longerLength === 0) {
+        return 100; // Both strings are empty, so they are 100% similar
+    }
+
+    const editDistance = calculateEditDistance(longerStr, shorterStr);
+    const similarity = (longerLength - editDistance) / parseFloat(longerLength) * 100;
+
+    return similarity.toFixed(2); // Return the similarity as a percentage with two decimal places
+}
+
+function calculateEditDistance(str1, str2) {
+    const matrix = [];
+
+    for (let i = 0; i <= str2.length; i++) {
+        matrix[i] = [i];
+    }
+
+    for (let j = 0; j <= str1.length; j++) {
+        matrix[0][j] = j;
+    }
+
+    for (let i = 1; i <= str2.length; i++) {
+        for (let j = 1; j <= str1.length; j++) {
+            if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1, // substitution
+                    matrix[i][j - 1] + 1,     // insertion
+                    matrix[i - 1][j] + 1      // deletion
+                );
+            }
+        }
+    }
+
+    return matrix[str2.length][str1.length];
+}
+
+function isValidIndianVoterId(voterId) {
+  // Assuming the format is "STATE/CONSTITUENCY/NUMBER"
+  const voterIdRegex = /^[A-Z]{2}\/[A-Z]+\/\d{7}$/;
+
+  return voterIdRegex.test(voterId);
+}
+
+
   module.exports = {
     generateOTP: generateOTP,
     sendVerificationEmail: sendVerificationEmail,
@@ -103,5 +154,7 @@ function generateOTP() {
     validatePanNumber:validatePanNumber,
     generateRandomUid:generateRandomUid,
     deleteFileWithRetry:deleteFileWithRetry,
-    isValidAadharNumber:isValidAadharNumber
+    isValidAadharNumber:isValidAadharNumber,
+    calculateStringSimilarity:calculateStringSimilarity,
+    isValidIndianVoterId:isValidIndianVoterId
   };
