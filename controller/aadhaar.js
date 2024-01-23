@@ -159,9 +159,9 @@ async function aadhaarOcrFront(req, res){
           let config = {
             method: 'post',
             maxBodyLength: Infinity,
-            url: 'https://sandbox.surepass.io/api/v1/ocr/aadhaar',
+            url: process.env.APIURL+'/api/v1/ocr/aadhaar',
             headers: { 
-              'Authorization': 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNDkwNjYxNCwianRpIjoiMDljYzMzMzMtY2ZhNS00ZGI5LWIwMjktZDMxYzMxODQ1MTQ1IiwidHlwZSI6ImFjY2VzcyIsImlkZW50aXR5IjoiZGV2Lm5hZGNhYkBzdXJlcGFzcy5pbyIsIm5iZiI6MTcwNDkwNjYxNCwiZXhwIjoxNzA3NDk4NjE0LCJ1c2VyX2NsYWltcyI6eyJzY29wZXMiOlsidXNlciJdfX0.9LPdnXNmlg8VeMI8c8iiagF_BfWMZk8-Vb1gUSMNc4s', 
+              'Authorization': 'Bearer '+process.env.TOKEN, 
               ...data.getHeaders()
             },
             data : data
@@ -216,6 +216,9 @@ async function aadhaarOcrFront(req, res){
     
           })
           .catch((error) => {
+            const imagePath = path.join(__dirname, '../public/uploads/aadhaar/front',randomUid );
+            console.log(imagePath);
+            Helper.deleteFileWithRetry(imagePath);
             res.status(200).json({ status: false, message: 'Invalid Aadhar Front Image' });
           });
 
@@ -288,9 +291,9 @@ async function aadhaarOcrBack(req, res){
           let config = {
             method: 'post',
             maxBodyLength: Infinity,
-            url: 'https://sandbox.surepass.io/api/v1/ocr/aadhaar',
+            url: process.env.APIURL+'/api/v1/ocr/aadhaar',
             headers: { 
-              'Authorization': 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNDkwNjYxNCwianRpIjoiMDljYzMzMzMtY2ZhNS00ZGI5LWIwMjktZDMxYzMxODQ1MTQ1IiwidHlwZSI6ImFjY2VzcyIsImlkZW50aXR5IjoiZGV2Lm5hZGNhYkBzdXJlcGFzcy5pbyIsIm5iZiI6MTcwNDkwNjYxNCwiZXhwIjoxNzA3NDk4NjE0LCJ1c2VyX2NsYWltcyI6eyJzY29wZXMiOlsidXNlciJdfX0.9LPdnXNmlg8VeMI8c8iiagF_BfWMZk8-Vb1gUSMNc4s', 
+              'Authorization': 'Bearer '+process.env.TOKEN, 
               ...data.getHeaders()
             },
             data : data
@@ -343,6 +346,9 @@ async function aadhaarOcrBack(req, res){
     
           })
           .catch((error) => {
+            const imagePath = path.join(__dirname, '../public/uploads/aadhaar/back',randomUid );
+            console.log(imagePath);
+            Helper.deleteFileWithRetry(imagePath);
             res.status(200).json({ status: false, message: 'Invalid Aadhar Back Image' });
           });
 
@@ -379,7 +385,7 @@ async function generateAadharOtp(req, res){
         }
      
     
-          const apiUrl = "https://sandbox.surepass.io/api/v1/aadhaar-v2/generate-otp";
+          const apiUrl = process.env.APIURL+"/api/v1/aadhaar-v2/generate-otp";
             
           // Data to be sent in the request body
           const postData = {
@@ -392,7 +398,7 @@ async function generateAadharOtp(req, res){
             headers: {
               "Content-Type": "application/json",
               Authorization:
-                "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNDkwNjYxNCwianRpIjoiMDljYzMzMzMtY2ZhNS00ZGI5LWIwMjktZDMxYzMxODQ1MTQ1IiwidHlwZSI6ImFjY2VzcyIsImlkZW50aXR5IjoiZGV2Lm5hZGNhYkBzdXJlcGFzcy5pbyIsIm5iZiI6MTcwNDkwNjYxNCwiZXhwIjoxNzA3NDk4NjE0LCJ1c2VyX2NsYWltcyI6eyJzY29wZXMiOlsidXNlciJdfX0.9LPdnXNmlg8VeMI8c8iiagF_BfWMZk8-Vb1gUSMNc4s", // Replace with your actual access token
+                "Bearer "+process.env.TOKEN, // Replace with your actual access token
             },
             body: JSON.stringify(postData),
           };
@@ -445,7 +451,7 @@ async function submitAadhaarOtp(req, res){
             return res.status(200).json({ status:false, message:'Invalid Client Id' }); 
           }
         
-          const apiUrl = "https://sandbox.surepass.io/api/v1/aadhaar-v2/submit-otp";
+          const apiUrl = process.env.APIURL+"/api/v1/aadhaar-v2/submit-otp";
           // Data to be sent in the request body
           const postData = {
             client_id: client_id,
@@ -458,7 +464,7 @@ async function submitAadhaarOtp(req, res){
             headers: {
               "Content-Type": "application/json",
               Authorization:
-                "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNDkwNjYxNCwianRpIjoiMDljYzMzMzMtY2ZhNS00ZGI5LWIwMjktZDMxYzMxODQ1MTQ1IiwidHlwZSI6ImFjY2VzcyIsImlkZW50aXR5IjoiZGV2Lm5hZGNhYkBzdXJlcGFzcy5pbyIsIm5iZiI6MTcwNDkwNjYxNCwiZXhwIjoxNzA3NDk4NjE0LCJ1c2VyX2NsYWltcyI6eyJzY29wZXMiOlsidXNlciJdfX0.9LPdnXNmlg8VeMI8c8iiagF_BfWMZk8-Vb1gUSMNc4s", // Replace with your actual access token
+                "Bearer "+process.env.TOKEN, // Replace with your actual access token
             },
             body: JSON.stringify(postData),
           };

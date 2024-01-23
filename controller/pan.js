@@ -1,5 +1,7 @@
 const Helper = require('../helper/function');
 const Client = require('../models/client.js');
+const sizeOf = require('image-size');
+const path = require('path');
 
 async function validatePan(req, res){
     try {
@@ -16,7 +18,7 @@ async function validatePan(req, res){
       console.log("Saved Record");
       return res.status(200).json({ status:true, message:'Pan Validated', data : pan_detail });
     }
-      const apiUrl = "https://sandbox.surepass.io/api/v1/pan/pan-comprehensive";
+      const apiUrl = process.env.APIURL+"/api/v1/pan/pan-comprehensive";
         
       // Data to be sent in the request body
       const postData = {
@@ -29,7 +31,7 @@ async function validatePan(req, res){
         headers: {
           "Content-Type": "application/json",
           Authorization:
-            "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNDkwNjYxNCwianRpIjoiMDljYzMzMzMtY2ZhNS00ZGI5LWIwMjktZDMxYzMxODQ1MTQ1IiwidHlwZSI6ImFjY2VzcyIsImlkZW50aXR5IjoiZGV2Lm5hZGNhYkBzdXJlcGFzcy5pbyIsIm5iZiI6MTcwNDkwNjYxNCwiZXhwIjoxNzA3NDk4NjE0LCJ1c2VyX2NsYWltcyI6eyJzY29wZXMiOlsidXNlciJdfX0.9LPdnXNmlg8VeMI8c8iiagF_BfWMZk8-Vb1gUSMNc4s", // Replace with your actual access token
+            "Bearer "+process.env.TOKEN, // Replace with your actual access token
         },
         body: JSON.stringify(postData),
       };
@@ -153,13 +155,12 @@ async function panOcr(req, res){
           const fs = require('fs');
           let data = new FormData();
           data.append('file', fs.createReadStream(filePath));
-          
           let config = {
             method: 'post',
             maxBodyLength: Infinity,
-            url: 'https://sandbox.surepass.io/api/v1/ocr/pan',
+            url: process.env.APIURL+'/api/v1/ocr/pan',
             headers: { 
-              'Authorization': 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNDkwNjYxNCwianRpIjoiMDljYzMzMzMtY2ZhNS00ZGI5LWIwMjktZDMxYzMxODQ1MTQ1IiwidHlwZSI6ImFjY2VzcyIsImlkZW50aXR5IjoiZGV2Lm5hZGNhYkBzdXJlcGFzcy5pbyIsIm5iZiI6MTcwNDkwNjYxNCwiZXhwIjoxNzA3NDk4NjE0LCJ1c2VyX2NsYWltcyI6eyJzY29wZXMiOlsidXNlciJdfX0.9LPdnXNmlg8VeMI8c8iiagF_BfWMZk8-Vb1gUSMNc4s', 
+              'Authorization':  'Bearer '+process.env.TOKEN, 
               ...data.getHeaders()
             },
             data : data
@@ -213,7 +214,9 @@ async function panOcr(req, res){
     
           })
           .catch((error) => {
-            console.log(error)
+            const imagePath = path.join(__dirname, '../public/uploads/pan',randomUid );
+            console.log(imagePath);
+            Helper.deleteFileWithRetry(imagePath);
             res.status(200).json({ status: false, message: 'Invalid PAN Image' });
           });
     } catch (error){
