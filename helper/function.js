@@ -133,7 +133,7 @@ function calculateEditDistance(str1, str2) {
                     matrix[i - 1][j] + 1      // deletion
                 );
             }
-        }
+        } 
     }
 
     return matrix[str2.length][str1.length];
