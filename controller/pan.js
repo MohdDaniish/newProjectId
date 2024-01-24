@@ -21,25 +21,27 @@ async function validatePan(req, res){
       const apiUrl = process.env.APIURL+"/api/v1/pan/pan-comprehensive";
         
       // Data to be sent in the request body
-      const postData = {
-        id_number: pan,
-      };
-  
-      // Options for the fetch request
-      const options = {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization:
-            "Bearer "+process.env.TOKEN, // Replace with your actual access token
+      const axios = require('axios');
+      let data = JSON.stringify({
+        "id_number": pan
+      });
+
+      let config = {
+        method: 'post',
+        maxBodyLength: Infinity,
+        url: process.env.APIURL+'/api/v1/pan/pan-comprehensive',
+        headers: { 
+          'Authorization': 'Bearer '+process.env.TOKEN, 
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(postData),
+        data : data
       };
   
       // Make the POST request
-      const response = await fetch(apiUrl, options);
-      const dataset = await response.json();
-  
+     
+      
+      axios.request(config).then(async (response) => {
+      const dataset = response.data;
       if (dataset) {
         const data = dataset;
           console.log(dataset,'datatatat');
@@ -94,7 +96,10 @@ async function validatePan(req, res){
       } else {
         return res.status(200).json({ status:false, message:'Error while fetching PAN details', data : 'Invalid PAN' });
       }
-    
+    })
+    .catch((error) => {
+      console.log(error);
+    });
     } else {
       return res.status(200).json({ status:false, message:`${pan} is not a valid PAN number.`});
       console.log(`${pan} is not a valid PAN number.`);
@@ -214,6 +219,7 @@ async function panOcr(req, res){
     
           })
           .catch((error) => {
+            console.log(error)
             const imagePath = path.join(__dirname, '../public/uploads/pan',randomUid );
             console.log(imagePath);
             Helper.deleteFileWithRetry(imagePath);
