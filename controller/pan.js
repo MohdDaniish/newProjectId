@@ -174,7 +174,7 @@ async function panOcr(req, res){
           axios.request(config)
           .then(async (response) => {
             const data = response.data;
-            console.log("response data",data);
+            console.log("response data",JSON.stringify(response.data));
             
             const document_type = data.data.ocr_fields[0].document_type;
             if(document_type == "pan"){
@@ -190,8 +190,17 @@ async function panOcr(req, res){
             const month = parts[0];
             const day = parts[1];
             const pan_dob = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-    
-            if(savedfullname == pan_full_name && pan_number == savedpan && savedDOB == pan_dob){
+            console.log("savedfullname : ",savedfullname)
+            console.log("api pan_full_name : ",pan_full_name)
+            console.log("savedDOB : ",savedDOB)
+            console.log("api DOB : ",pan_dob)
+            console.log("saved PAN no : ",savedpan)
+            console.log("api PAN no : ",pan_number)
+            const similarityPercentageName = Helper.calculateStringSimilarity(savedfullname.toUpperCase(), pan_full_name.toUpperCase());
+            const similarityPercentageDOB = Helper.calculateStringSimilarity(savedDOB, pan_dob);   
+            console.log("similarityPercentageName : ",similarityPercentageName)
+            console.log("similarityPercentageDOB : ",similarityPercentageDOB)
+            if(pan_number == savedpan && similarityPercentageDOB >= 60 && similarityPercentageName >= 70){
             
               console.log("RESPONSE : PAN Image is Valid");
               // updated image name in client aadhar
