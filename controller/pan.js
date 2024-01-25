@@ -18,6 +18,14 @@ async function validatePan(req, res){
       console.log("Saved Record");
       return res.status(200).json({ status:true, message:'Pan Validated', data : pan_detail });
     }
+    
+    const is_mobile = await Client.findOne({ mobile: mobile});
+    if(is_mobile){
+      const pan_detail = is_mobile;
+      console.log("Saved Record");
+      return res.status(200).json({ status:true, message:'Pan Validated', data : pan_detail });
+    }
+
       const apiUrl = process.env.APIURL+"/api/v1/pan/pan-comprehensive";
         
       // Data to be sent in the request body
