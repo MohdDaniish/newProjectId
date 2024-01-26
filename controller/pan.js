@@ -208,7 +208,7 @@ async function panOcr(req, res){
             const similarityPercentageDOB = Helper.calculateStringSimilarity(savedDOB, pan_dob);   
             console.log("similarityPercentageName : ",similarityPercentageName)
             console.log("similarityPercentageDOB : ",similarityPercentageDOB)
-            if(pan_number == savedpan && similarityPercentageDOB >= 60 && similarityPercentageName >= 70){
+            if(pan_number == savedpan && similarityPercentageDOB >= 60 && similarityPercentageName >= 60){
             
               console.log("RESPONSE : PAN Image is Valid");
               // updated image name in client aadhar

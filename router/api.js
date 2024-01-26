@@ -644,8 +644,10 @@ router.post('/aadhar_back', upload.single('image'), async (req, res) => {
     }
 });
 
-router.post('/pan_ocr', upload.single('image'), async (req, res) => {
+router.post('/pan_ocr', upload.single('file'), async (req, res) => {
   try {
+    console.log("File Details : ",req.file)
+    console.log("Req Body : ",req.body)
     const resp = await pan.panOcr(req,res);
     return resp
     } catch(error){ 
@@ -683,5 +685,50 @@ router.post("/voter_id", async(req,res)=>{
       return res.status(200).json({ status:false, message:error });
     }
 })  
+
+router.post('/seeKyc', async (req, res) => {
+  try{
+    const { mobile } = req.body;
+    if (!mobile) {
+      return res.status(200).json({ status:false, message:'Mobile is required',error: 'Mobile is required' });
+    }
+    const isClient = await Client.findOne({ mobile : mobile });
+    if(isClient){
+      const dataObject = {
+        pan_validation: isClient ? true : false,
+        pan_ocr: isClient.pan_ocr != null ? true : false,
+        aadhaar_validation: isClient.aadhaar_validation == true ? true : false,
+        aadhaar_mobile_validation: isClient.aadhaar_verification == true ? true : false,
+        aadhaar_front: isClient.aadhar_front != null ? true : false,
+        aadhaar_back: isClient.aadhar_back != null ? true : false,
+        voter_validation: isClient.voter_validation == true ? true : false,
+        voter_ocr: isClient.voter_ocr != null ? true : false,
+        license_validation: isClient.license_validation == true ? true : false,
+        license_ocr: isClient.license_ocr != null ? true : false,
+        passport_validation: isClient.passport_validation == true ? true : false,
+        passport_ocr: isClient.passport_ocr != null ? true : false,
+      };
+      return res.status(200).json({ status:true, message:'KYC Status', data : dataObject });
+    } else {
+      const dataObject = {
+        pan_validation: false,
+        pan_ocr: false,
+        aadhaar_validation: false,
+        aadhaar_mobile_validation: false,
+        aadhaar_front: false,
+        aadhaar_back: false,
+        voter_validation: false,
+        voter_ocr: false,
+        license_validation: false,
+        license_ocr: false,
+        passport_validation: false,
+        passport_ocr: false,
+      };
+      return res.status(200).json({ status:false, message:'No Client Found', data : dataObject });
+    }
+  } catch (error) {
+    return res.status(200).json({ status:false, message:'error while fetching Client' });
+}
+})
 
 module.exports = router;
