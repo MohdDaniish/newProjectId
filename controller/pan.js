@@ -1,5 +1,6 @@
 const Helper = require('../helper/function');
 const Client = require('../models/client.js');
+const Pan = require('../models/pan.js');
 const sizeOf = require('image-size');
 const path = require('path');
 
@@ -11,21 +12,14 @@ async function validatePan(req, res){
     }
   
     if (Helper.validatePanNumber(pan)) {
-    const is_pan = await Client.findOne({ pan_number: pan});
+    const is_pan = await Client.findOne({ pan_number: pan, mobile : mobile});
   
     if(is_pan){
-      const pan_detail = is_pan;
-      console.log("Saved Record");
-      return res.status(200).json({ status:true, message:'Pan Validated', data : pan_detail });
+      const pan_detail = await Pan.findOne({ pan_number: pan});
+      console.log("Pan Already Validated");
+      return res.status(200).json({ status:false, message:'Pan Already Validated', data : pan_detail });
     }
     
-    const is_mobile = await Client.findOne({ mobile: mobile});
-    if(is_mobile){
-      const pan_detail = is_mobile;
-      console.log("Saved Record");
-      return res.status(200).json({ status:true, message:'Pan Validated', data : pan_detail });
-    }
-
       const apiUrl = process.env.APIURL+"/api/v1/pan/pan-comprehensive";
         
       // Data to be sent in the request body
@@ -61,6 +55,14 @@ async function validatePan(req, res){
           console.log(split_name);
           console.log('data', data.data.aadhaar_linked);
           const cli = new Client({
+            pan_number:data.data.pan_number, 
+            mobile : mobile
+          });
+  
+          // Save the business to the database
+          const saved = await cli.save();
+          if(saved){
+            const pandet = new Pan({
             aadhaar_linked: data.data.aadhaar_linked,
             city: data.data.address.city,
             country :data.data.address.country,
@@ -86,13 +88,10 @@ async function validatePan(req, res){
             phone_number : data.data.phone_number,
             mobile : mobile
           });
-  
           // Save the business to the database
-          const saved = await cli.save();
-          if(saved){
-            const is_pan = await Client.findOne({ pan_number: pan});
-          if(is_pan){
-            const pan_detail = is_pan;
+          const savedpan = await pandet.save();
+          if(savedpan){
+            const pan_detail = await Pan.findOne({ pan_number: pan});
             return res.status(200).json({ status:true, message:'Pan Validated', data : pan_detail });
           } else {
             return res.status(200).json({ status:false, message:'Error while Validating PAN details', data : '' });
@@ -141,11 +140,12 @@ async function panOcr(req, res){
         }
     
         if (panExist.pan_ocr != null) {
-          return res.status(200).json({ status:true, message:'PAN Already Uploaded And Validated'});
+          return res.status(200).json({ status:false, message:'PAN Already Uploaded And Validated'});
         }
         
-        const savedfullname = panExist.full_name;
-        const savdDOB = panExist.dob;
+        const panData = await Pan.findOne({ mobile : mobile });
+        const savedfullname = panData.full_name;
+        const savdDOB = panData.dob;
         // converting DOB to api date format
         var parts = savdDOB.split("-");
         var year = parts[0];
@@ -153,7 +153,7 @@ async function panOcr(req, res){
         // Extract the month and pad it with leading zero if needed
         var month = (parts[1].length === 1) ? "0" + parts[1] : parts[1];
         const savedDOB = year + "-" + day + "-" + month;
-        const savedpan = panExist.pan_number;
+        const savedpan = panData.pan_number;
         
         // uploading aadhar image
         var randomUid = Helper.generateRandomUid(50);
@@ -214,7 +214,10 @@ async function panOcr(req, res){
               const matchPer = {
                 pan_number_match : "100.00",
                 name_match : similarityPercentageName,
-                dob_match : similarityPercentageDOB
+                dob_match : similarityPercentageDOB,
+                fullname : pan_full_name.toUpperCase(),
+                DOB : pan_dob,
+                PAN_number : pan_number
               }
               // updated image name in client aadhar
               const result = await Client.updateOne({ mobile: mobile }, { $set: { pan_ocr: randomUid } });

@@ -1,7 +1,9 @@
 const Helper = require('../helper/function');
 const Client = require('../models/client.js');
+const Aadhar = require('../models/aadhaar_detail.js');
 const sizeOf = require('image-size');
 const path = require('path');
+const Pan = require('../models/pan.js');
 
 async function validateAadhaar(req, res){
     try {
@@ -21,15 +23,15 @@ async function validateAadhaar(req, res){
         const is_aadh = await Client.findOne({ aadhaar_validation: true, mobile: mobile});
         
         if(is_aadh){
-          const _detail = is_aadh;
-          console.log("Saved Record");
-          return res.status(200).json({ status:true, message:'Aadhar Already Validated', data : _detail });
+          const _detail = await Aadhar.findOne({ mobile: mobile});;
+          console.log("Aadhar Already Validated");
+          return res.status(200).json({ status:false, message:'Aadhar Already Validated', data : _detail });
         }
         
-        const maskedAdhar = is_pan.masked_aadhaar;
-       
+        const adharData = await Pan.findOne({ mobile: mobile});;
+        const maskedAdhar = adharData.masked_aadhaar;
         const lastFourDigitsSubstring = maskedAdhar.substring(maskedAdhar.length - 4);
-        const lastFourDigitsSlice = maskedAdhar.slice(-4);
+        
     
         const givenDigitsSubstring = aadhar.substring(aadhar.length - 4);
         console.log("Given Aadhar FOur",givenDigitsSubstring);
@@ -39,58 +41,55 @@ async function validateAadhaar(req, res){
           return res.status(200).json({ status:false, message:'Your Aadhar Not Match with PAN details' }); 
         }
     
-          const apiUrl = "https://sandbox.surepass.io/api/v1/aadhaar-validation/aadhaar-validation";
-            
-          // Data to be sent in the request body
-          const postData = {
-            id_number: aadhar,
-          };
-      
-          // Options for the fetch request
-          const options = {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization:
-                "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNDkwNjYxNCwianRpIjoiMDljYzMzMzMtY2ZhNS00ZGI5LWIwMjktZDMxYzMxODQ1MTQ1IiwidHlwZSI6ImFjY2VzcyIsImlkZW50aXR5IjoiZGV2Lm5hZGNhYkBzdXJlcGFzcy5pbyIsIm5iZiI6MTcwNDkwNjYxNCwiZXhwIjoxNzA3NDk4NjE0LCJ1c2VyX2NsYWltcyI6eyJzY29wZXMiOlsidXNlciJdfX0.9LPdnXNmlg8VeMI8c8iiagF_BfWMZk8-Vb1gUSMNc4s", // Replace with your actual access token
-            },
-            body: JSON.stringify(postData),
-          };
-      
+        const axios = require('axios');
+        let data = JSON.stringify({
+          "id_number": aadhar
+        });
+        
+        let config = {
+          method: 'post',
+          maxBodyLength: Infinity,
+          url: process.env.APIURL+'/api/v1/aadhaar-validation/aadhaar-validation',
+          headers: { 
+            'Content-Type': 'application/json', 
+            'Authorization': 'Bearer '+process.env.TOKEN
+          },
+          data : data
+        };
           // Make the POST request
-          const response = await fetch(apiUrl, options);
-          const dataset = await response.json();
-      
-          if (dataset) {
-            const data = dataset;
-              console.log(dataset,'datatatat');
+          axios.request(config)
+          .then(async (response) => {
+            const data = response.data;
+          
+              console.log(data,'datatatat');
       
               const result = await Client.updateOne({ mobile: mobile }, { $set: {
                 aadhaar_number: data.data.aadhaar_number,
                 aadhaar_validation : true
                 } });
               if (result.modifiedCount > 0) {
-                const is_aadha = await Client.findOne({ mobile: mobile});
-              if(is_aadha){
-                const _details = is_aadha;
-                return res.status(200).json({ status:true, message:'Aadhaar Validated', data : _details });
+                // const is_aadha = await Client.findOne({ mobile: mobile});
+              // if(is_aadha){
+              //   const _details = is_aadha;
+                return res.status(200).json({ status:true, message:'Aadhaar Validation Successfull', data : '' });
               } else {
                 return res.status(200).json({ status:false, message:'Error while Validating Aadhaar details', data : '' });
               }
-              } else {
-                return res.status(200).json({ status:true, message:'Aadhaar data saved' });
-              }
+              // } else {
+              //   return res.status(200).json({ status:true, message:'Aadhaar data saved' });
+              // }
       
-          } else {
+          }).catch((error) => {
+            console.log(error)
             return res.status(200).json({ status:false, message:'Error while fetching Aadhaar details', data : '' });
-          }
+          })
         
         } else {
           console.log(`${aadhar} is not a valid Aadhaar number.`);
           return res.status(200).json({ status:false, message:`${aadhar} is not a valid Aadhaar number.` });
           
         }
-    } catch {
+    } catch(error) {
         console.log(error);
         return error;
     }
@@ -112,13 +111,20 @@ async function aadhaarOcrFront(req, res){
         if (!panExist) {
           return res.status(200).json({ status:false, message:'User Not Exist or PAN number not updated'});
         }
+
+        const aadhVal = await Client.findOne({ mobile : mobile, aadhaar_validation : true });
+        if (!aadhVal) {
+          return res.status(200).json({ status:false, message:'Please Validate Your Aadhar First'});
+        }
     
         if (panExist.aadhar_front != null) {
-          return res.status(200).json({ status:true, message:'Aadhar Front Already Uploaded And Validated'});
+          return res.status(200).json({ status:false, message:'Aadhar Front Already Uploaded And Validated'});
         }
         
-        const maskedAdhar = panExist.masked_aadhaar;
-        const savedDOB = panExist.dob;
+        const panData = await Pan.findOne({ mobile : mobile });
+        const maskedAdhar = panData.masked_aadhaar;
+        const savedDOB = panData.dob;
+        const saveFullName = panData.full_name;
         const lastFourDigitsSubstring = maskedAdhar.substring(maskedAdhar.length - 4);
  
         if(maskedAdhar == null || maskedAdhar == ""){
@@ -159,6 +165,7 @@ async function aadhaarOcrFront(req, res){
             if(document_type == "aadhaar_front_bottom"){
             const aadhar_number = data.data.ocr_fields[0].aadhaar_number.value;
             const dob = data.data.ocr_fields[0].dob.value;
+            const full_name = data.data.ocr_fields[0].full_name.value;
             console.log("aadhar_number",data.data.ocr_fields[0].aadhaar_number.value);
             if(aadhar_number.length == 12){
             const savedFourDigitsSubstring = aadhar_number.substring(aadhar_number.length - 4);
@@ -167,12 +174,24 @@ async function aadhaarOcrFront(req, res){
             console.log("api aadhar",lastFourDigitsSubstring);
             console.log("saved dob",savedDOB);
             console.log("api dob",dob);
-            if(savedFourDigitsSubstring == lastFourDigitsSubstring && dob == savedDOB){
+            console.log("save Full name ",saveFullName);
+            console.log("api Full name ",full_name);
+            const similarityPercentageName = Helper.calculateStringSimilarity(saveFullName.toUpperCase(), full_name.toUpperCase());
+            const similarityPercentageDOB = Helper.calculateStringSimilarity(savedDOB, dob);  
+
+            if(savedFourDigitsSubstring == lastFourDigitsSubstring && similarityPercentageDOB >= 60 && similarityPercentageName >= 60){
               console.log("RESPONSE : AADHAR MATCH FRONT");
               // updated image name in client aadhar
               const result = await Client.updateOne({ mobile: mobile }, { $set: { aadhar_front: randomUid } });
               if (result.modifiedCount > 0) {
-              res.status(200).json({ status: true, message: 'Aadhar Front Validated' });
+                const matchPer = {
+                  name_match : similarityPercentageName,
+                  dob_match : similarityPercentageDOB,
+                  fullname : full_name.toUpperCase(),
+                  DOB : dob,
+                  Aadhaar_number : aadhar_number
+                }
+              res.status(200).json({ status: true, message: 'Aadhar Front Validated Successfully' , data : matchPer });
               } else {
               res.status(200).json({ status: false, message: 'Error While Validating Aadhar Front' });  
               }
@@ -180,7 +199,7 @@ async function aadhaarOcrFront(req, res){
               // delete uploaded image
               console.log("RESPONSE : AADHAR FRONT DATA DO NOT MATCHED");
               const imagePath = path.join(__dirname, '../public/uploads/aadhaar/front',randomUid );
-              console.log(imagePath);
+              console.log(imagePath); 
               Helper.deleteFileWithRetry(imagePath);
               res.status(200).json({ status: false, message: 'Aadhar Front Data not Matched' });
             }
@@ -221,28 +240,27 @@ async function aadhaarOcrBack(req, res){
     
         if (!req.file) {
           return res.status(200).json({ status: false, message: 'No file uploaded.' });
-          throw new Error('No file uploaded.');
         }
     
-        const dimensions = sizeOf(req.file.buffer);
-    
-        // const maxWidth = 1300;
-        // const maxHeight = 1000;
-        // if (dimensions.width > maxWidth || dimensions.height > maxHeight) {
-        //   throw new Error('Image dimensions exceed the allowed size.');
-        // }
         console.log("mobile",mobile);
         const panExist = await Client.findOne({ mobile : mobile });
         if (!panExist) {
           return res.status(200).json({ status:false, message:'User Not Exist or PAN number not updated'});
         }
+
+        const aadhVal = await Client.findOne({ mobile : mobile, aadhaar_validation : true });
+        if (!aadhVal) {
+          return res.status(200).json({ status:false, message:'Please Validate Your Aadhar First'});
+        }
     
         if (panExist.aadhar_back != null) {
-          return res.status(200).json({ status:true, message:'Aadhar Back Already Uploaded And Validated'});
+          return res.status(200).json({ status:false, message:'Aadhar Back Already Uploaded And Validated'});
         }
         
-        const maskedAdhar = panExist.masked_aadhaar;
-        const savedDOB = panExist.dob;
+        const panData = await Pan.findOne({ mobile : mobile });
+        const maskedAdhar = panData.masked_aadhaar;
+        const savedDOB = panData.dob;
+        const savedAddress = panData.full;
         console.log(maskedAdhar);
        
         const lastFourDigitsSubstring = maskedAdhar.substring(maskedAdhar.length - 4);
@@ -285,25 +303,40 @@ async function aadhaarOcrBack(req, res){
           axios.request(config)
           .then(async (response) => {
             const data = response.data;
-            console.log("response data",data);
+            //console.log("response data",JSON.stringify(data));
             
             const document_type = data.data.ocr_fields[0].document_type;
             if(document_type == "aadhaar_back"){
             const aadhar_number = data.data.ocr_fields[0].aadhaar_number.value;
+            const addressapi = data.data.ocr_fields[0].address.value;
+
+            // remove father name from address 
+            const resultArray = addressapi.split(',');
+            resultArray.splice(0, 1);
+            const address = resultArray.join(',');
+
             console.log("aadhar_number",data.data.ocr_fields[0].aadhaar_number.value);
             if(aadhar_number.length == 12){
             const savedFourDigitsSubstring = aadhar_number.substring(aadhar_number.length - 4);
-            const savedFourDigitsSlice = aadhar_number.slice(-4);
             console.log("saved aadhar",savedFourDigitsSubstring);
             console.log("api aadhar",lastFourDigitsSubstring);
             console.log("saved dob",savedDOB);
-            
-            if(savedFourDigitsSubstring == lastFourDigitsSubstring){
+            console.log("saved Address ",savedAddress);
+            console.log("ocr address ",address);
+            const similarityPercentageAddress = Helper.calculateStringSimilarity(savedAddress.toUpperCase(), address.toUpperCase());  
+            console.log("address similarity Percent : ", similarityPercentageAddress)
+            if(savedFourDigitsSubstring == lastFourDigitsSubstring && similarityPercentageAddress >= 40){
               console.log("RESPONSE : AADHAR MATCH BACK");
               // updated image name in client aadhar
               const result = await Client.updateOne({ mobile: mobile }, { $set: { aadhar_back: randomUid } });
               if (result.modifiedCount > 0) {
-              res.status(200).json({ status: true, message: 'Aadhar Back Validated' });
+                const matchPer = {
+                  address_match : similarityPercentageAddress,
+                  aadhar_match : "100:00",
+                  Aadhaar_number : aadhar_number,
+                  Address : addressapi
+                }
+              res.status(200).json({ status: true, message: 'Aadhar Back Validated Successfully', data : matchPer });
               } else {
               res.status(200).json({ status: false, message: 'Error While Validating Aadhar Back' });  
               }
@@ -347,6 +380,11 @@ async function generateAadharOtp(req, res){
         if (!mobile || !aadhar) {
           return res.status(200).json({ status:false, message:'Aadhar Number and Mobile number is required' });
         }
+
+        const checkk = await Client.findOne({ mobile: mobile, aadhaar_validation : true});
+        if(checkk){
+        return res.status(200).json({ status:true, message:'Aadhaar OTP Validation Already Completed', data : checkk });  
+        }
       
         if (Helper.isValidAadharNumber(aadhar)) {
           
@@ -355,44 +393,49 @@ async function generateAadharOtp(req, res){
           if(!is_pan){
             return res.status(200).json({ status:false, message:'Pan Verification is Pending Or User Not Exist' }); 
           }
-      
-          const is_aadh = await Client.findOne({ aadhaar_validation: true, mobile: mobile});
-          
-          if(!is_aadh){
-            return res.status(200).json({ status:false, message:'Aadhar Validation is not complete' });
+
+          if(is_pan.pan_ocr == null){
+            return res.status(200).json({ status:false, message:'Pan OCR is Pending' });  
           }
-        const savedAdhar = is_pan.aadhaar_number;
+      
+          // const is_aadh = await Client.findOne({ aadhaar_validation: true, mobile: mobile});
+          
+          // if(!is_aadh){
+          //   return res.status(200).json({ status:false, message:'Aadhar Validation is not complete' });
+          // }
+          const adharData = await Pan.findOne({ mobile: mobile});
+          const maskedAdhar = adharData.masked_aadhaar;
+          const lastFourDigitsSubstring = maskedAdhar.substring(maskedAdhar.length - 4);
+          
+      
+          const givenDigitsSubstring = aadhar.substring(aadhar.length - 4);
+          console.log("Given Aadhar FOur",givenDigitsSubstring);
+          console.log("Saved Aadhar FOur",lastFourDigitsSubstring);
     
-        if(savedAdhar != aadhar){
+        if(lastFourDigitsSubstring != givenDigitsSubstring){
           return res.status(200).json({ status:false, message:'Aadhar Not Matched with our record' });
         }
      
-    
-          const apiUrl = process.env.APIURL+"/api/v1/aadhaar-v2/generate-otp";
-            
-          // Data to be sent in the request body
-          const postData = {
-            id_number: aadhar,
-          };
-      
-          // Options for the fetch request
-          const options = {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization:
-                "Bearer "+process.env.TOKEN, // Replace with your actual access token
-            },
-            body: JSON.stringify(postData),
-          };
-      
+        const axios = require('axios');
+        let data = JSON.stringify({
+          "id_number": aadhar
+        });
+        
+        let config = {
+          method: 'post',
+          maxBodyLength: Infinity,
+          url: process.env.APIURL+'/api/v1/aadhaar-v2/generate-otp',
+          headers: { 
+            'Content-Type': 'application/json', 
+            'Authorization': 'Bearer '+process.env.TOKEN
+          },
+          data : data
+        };
           // Make the POST request
-          const response = await fetch(apiUrl, options);
-          const dataset = await response.json();
-      
-          if (dataset) {
-            const data = dataset;
-              console.log(dataset,'datatatat');
+          axios.request(config)
+          .then(async (response) => {
+            const data = response.data;
+              console.log('datatatat',JSON.stringify(data));
               if(data.data.otp_sent == true && data.data.status == "generate_otp_success"){
                 const result = await Client.updateOne({ mobile: mobile,aadhaar_number:aadhar }, { $set: {
                   aadhaar_client_id: data.data.client_id
@@ -401,9 +444,13 @@ async function generateAadharOtp(req, res){
                 return res.status(200).json({ status:true, message: 'Aadhaar OTP sent to your Mobile', data : data.data.client_id });
                 }
               }
-          } else {
-            return res.status(200).json({ status:false, message:'Error while Generating Aadhaar OTP' });
-          }
+            })
+            .catch((error) => {
+              const imagePath = path.join(__dirname, '../public/uploads/aadhaar/back',randomUid );
+              console.log(imagePath);
+              Helper.deleteFileWithRetry(imagePath);
+              res.status(200).json({ status: false, message: 'Invalid Aadhar Back Image' });
+            });
         
         } else {
           console.log(`${aadhar} is not a valid Aadhaar number.`);
@@ -417,49 +464,47 @@ async function generateAadharOtp(req, res){
 
 async function submitAadhaarOtp(req, res){
     try {
-        const { client_id, otp } = req.body;
-        if (!client_id || !otp) {
-          return res.status(200).json({ status:false, message:'Client Id and OTP is required' });
+        const { client_id, otp , mobile } = req.body;
+        if (!client_id || !otp || !mobile) {
+          return res.status(200).json({ status:false, message:'Client Id and OTP and Mobile is required' });
         }
   
-        const checkk = await Client.findOne({ aadhaar_client_id: client_id, aadhaar_verification : true});
+        const checkk = await Client.findOne({ mobile: mobile, aadhaar_validation : true});
         if(checkk){
         return res.status(200).json({ status:true, message:'Aadhaar OTP Validation Already Completed', data : checkk });  
         }
       
-        if (typeof otp === 'number' && otp.toString().length == 6) {
+        if (otp.toString().length == 6) {
           const is_pan = await Client.findOne({ aadhaar_client_id: client_id});
     
           if(!is_pan){
             return res.status(200).json({ status:false, message:'Invalid Client Id' }); 
           }
         
-          const apiUrl = process.env.APIURL+"/api/v1/aadhaar-v2/submit-otp";
-          // Data to be sent in the request body
-          const postData = {
-            client_id: client_id,
-            otp : otp
-          };
-      
-          // Options for the fetch request
-          const options = {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization:
-                "Bearer "+process.env.TOKEN, // Replace with your actual access token
-            },
-            body: JSON.stringify(postData),
-          };
+
+        const axios = require('axios');
+        let data = JSON.stringify({
+          "client_id": client_id,
+          "otp" : otp
+        });
+        
+        let config = {
+          method: 'post',
+          maxBodyLength: Infinity,
+          url: process.env.APIURL+'/api/v1/aadhaar-v2/submit-otp',
+          headers: { 
+            'Content-Type': 'application/json', 
+            'Authorization': 'Bearer '+process.env.TOKEN
+          },
+          data : data
+        };
       
           // Make the POST request
-          const response = await fetch(apiUrl, options);
-          const dataset = await response.json();
-      
-          if (dataset) {
-            const data = dataset;
-              console.log(dataset,'datatatat');
-              if(data.data.message_code == "success" && data.data.success == true){
+          axios.request(config)
+          .then(async (response) => {
+            const data = response.data;
+            console.log('data : ',JSON.stringify(data))
+              if(data.message_code == "success" && data.success == true){
                 const cli = new Aadhar({
                   mobile:is_pan.mobile,
                   client_id: data.data.client_id,
@@ -491,7 +536,7 @@ async function submitAadhaarOtp(req, res){
                 const saved = await cli.save();
                 if(saved){
                   const result = await Client.updateOne({ aadhaar_client_id:client_id }, { $set: {
-                    aadhaar_verification: true
+                    aadhaar_validation: true
                     } });
                   if (result.modifiedCount > 0) {
                 return res.status(200).json({ status:true, message:'Aadhar OTP Validation Success', data : data }); 
@@ -500,9 +545,10 @@ async function submitAadhaarOtp(req, res){
               } else {
                 return res.status(200).json({ status:false, message:'Error while Verifying OTP', data : data });
               }
-          } else {
-            return res.status(200).json({ status:false, message:'Error while Generating Aadhaar OTP' });
-          }
+            }).catch((error) => {
+              console.log(error)
+              return res.status(200).json({ status:false, message:'Error while fetching Aadhaar details', data : '' });
+            })
         
         } else {
           console.log(`${otp} is not a valid number.`);
