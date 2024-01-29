@@ -624,7 +624,7 @@ router.post("/validate_aadhaar", async(req,res)=>{
   })
 
 // Define the file upload route
-router.post('/aadhar_front', upload.single('image'), async (req, res) => {
+router.post('/aadhar_front', upload.single('file'), async (req, res) => {
   try {
     const resp = await aadhaar.aadhaarOcrFront(req,res);
     return resp
@@ -634,7 +634,7 @@ router.post('/aadhar_front', upload.single('image'), async (req, res) => {
     }
 });
 
-router.post('/aadhar_back', upload.single('image'), async (req, res) => {
+router.post('/aadhar_back', upload.single('file'), async (req, res) => {
   try {
     const resp = await aadhaar.aadhaarOcrBack(req,res);
     return resp
@@ -646,8 +646,6 @@ router.post('/aadhar_back', upload.single('image'), async (req, res) => {
 
 router.post('/pan_ocr', upload.single('file'), async (req, res) => {
   try {
-    console.log("File Details : ",req.file)
-    console.log("Req Body : ",req.body)
     const resp = await pan.panOcr(req,res);
     return resp
     } catch(error){ 

@@ -134,12 +134,7 @@ async function panOcr(req, res){
     
         const dimensions = sizeOf(req.file.buffer);
     
-        // const maxWidth = 1300;
-        // const maxHeight = 1000;
-        // if (dimensions.width > maxWidth || dimensions.height > maxHeight) {
-        //   throw new Error('Image dimensions exceed the allowed size.');
-        // }
-        console.log("mobile",mobile);
+        //console.log("mobile",mobile);
         const panExist = await Client.findOne({ mobile : mobile });
         if (!panExist) {
           return res.status(200).json({ status:false, message:'User Not Exist or PAN number not updated'});
@@ -150,7 +145,14 @@ async function panOcr(req, res){
         }
         
         const savedfullname = panExist.full_name;
-        const savedDOB = panExist.dob;
+        const savdDOB = panExist.dob;
+        // converting DOB to api date format
+        var parts = savdDOB.split("-");
+        var year = parts[0];
+        var day = parts[2];
+        // Extract the month and pad it with leading zero if needed
+        var month = (parts[1].length === 1) ? "0" + parts[1] : parts[1];
+        const savedDOB = year + "-" + day + "-" + month;
         const savedpan = panExist.pan_number;
         
         // uploading aadhar image
@@ -160,7 +162,7 @@ async function panOcr(req, res){
         const uploadPath = path.join(__dirname, '../public/uploads/pan', randomUid);
         require('fs').writeFileSync(uploadPath, req.file.buffer);
     
-          console.log("file_name",req.file.originalname);
+          //console.log("file_name",req.file.originalname);
          
           const filePath = path.join(__dirname, '/../public', 'uploads/pan', randomUid);
           const axios = require('axios');
@@ -182,7 +184,7 @@ async function panOcr(req, res){
           axios.request(config)
           .then(async (response) => {
             const data = response.data;
-            console.log("response data",JSON.stringify(response.data));
+            // console.log("response data",JSON.stringify(response.data));
             
             const document_type = data.data.ocr_fields[0].document_type;
             if(document_type == "pan"){
@@ -209,21 +211,22 @@ async function panOcr(req, res){
             console.log("similarityPercentageName : ",similarityPercentageName)
             console.log("similarityPercentageDOB : ",similarityPercentageDOB)
             if(pan_number == savedpan && similarityPercentageDOB >= 60 && similarityPercentageName >= 60){
-            
-              console.log("RESPONSE : PAN Image is Valid");
+              const matchPer = {
+                pan_number_match : "100.00",
+                name_match : similarityPercentageName,
+                dob_match : similarityPercentageDOB
+              }
               // updated image name in client aadhar
               const result = await Client.updateOne({ mobile: mobile }, { $set: { pan_ocr: randomUid } });
               if (result.modifiedCount > 0) {
-              res.status(200).json({ status: true, message: 'PAN Image is Valid' });
+              res.status(200).json({ status: true, message: 'PAN OCR is Successfull, PAN Image is Valid', data : matchPer });
               } else {
               res.status(200).json({ status: false, message: 'Error While Validating PAN ' });  
               }
             } else {
               // delete uploaded image
               const imagePath = path.join(__dirname, '../public/uploads/pan',randomUid );
-              console.log(imagePath);
               Helper.deleteFileWithRetry(imagePath);
-              console.log("RESPONSE : PAN DATA DO NOT MATCHED");
               res.status(200).json({ status: false, message: 'PAN Data not Matched' });
             }
            

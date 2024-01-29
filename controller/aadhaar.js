@@ -106,17 +106,8 @@ async function aadhaarOcrFront(req, res){
     
         if (!req.file) {
           return res.status(200).json({ status: false, message: 'No file uploaded.' });
-          throw new Error('No file uploaded.');
         }
     
-        const dimensions = sizeOf(req.file.buffer);
-    
-        // const maxWidth = 1300;
-        // const maxHeight = 1000;
-        // if (dimensions.width > maxWidth || dimensions.height > maxHeight) {
-        //   throw new Error('Image dimensions exceed the allowed size.');
-        // }
-        console.log("mobile",mobile);
         const panExist = await Client.findOne({ mobile : mobile });
         if (!panExist) {
           return res.status(200).json({ status:false, message:'User Not Exist or PAN number not updated'});
@@ -128,14 +119,8 @@ async function aadhaarOcrFront(req, res){
         
         const maskedAdhar = panExist.masked_aadhaar;
         const savedDOB = panExist.dob;
-        console.log(maskedAdhar);
-       
         const lastFourDigitsSubstring = maskedAdhar.substring(maskedAdhar.length - 4);
-        const lastFourDigitsSlice = maskedAdhar.slice(-4);
-    
-    // console.log("Last four digits (substring):", lastFourDigitsSubstring);
-    // console.log("Last four digits (slice):", lastFourDigitsSlice);
-    
+ 
         if(maskedAdhar == null || maskedAdhar == ""){
           return res.status(200).json({ status:false, message:'PAN details not updated'});
         }
@@ -147,8 +132,6 @@ async function aadhaarOcrFront(req, res){
         const uploadPath = path.join(__dirname, '../public/uploads/aadhaar/front', randomUid);
         require('fs').writeFileSync(uploadPath, req.file.buffer);
     
-          console.log("file_name",req.file.originalname);
-         
           const filePath = path.join(__dirname, '/../public', 'uploads/aadhaar/front', randomUid);
           const axios = require('axios');
           const FormData = require('form-data');
