@@ -46,6 +46,10 @@ async function validatePan(req, res){
       const dataset = response.data;
       if (dataset) {
         const data = dataset;
+        console.log("message : ",data.message);
+        if(data.message == "Invalid PAN"){
+          return res.status(200).json({ status:true, message:'Invalid PAN', data : '' });
+        }
           console.log(dataset,'datatatat');
           const fulnamesplit = data.data.full_name_split;
   
@@ -184,7 +188,7 @@ async function panOcr(req, res){
           axios.request(config)
           .then(async (response) => {
             const data = response.data;
-            // console.log("response data",JSON.stringify(response.data));
+            console.log("response data",JSON.stringify(response.data));
             
             const document_type = data.data.ocr_fields[0].document_type;
             if(document_type == "pan"){
@@ -192,6 +196,7 @@ async function panOcr(req, res){
             console.log("pan",pan_number);
             const pan_full_name = data.data.ocr_fields[0].full_name.value;
             const dob = data.data.ocr_fields[0].dob.value;
+            const father_name = data.data.ocr_fields[0].father_name.value;
     
             // changing date format to 1990-01-01
             const dateString = dob;
@@ -210,18 +215,20 @@ async function panOcr(req, res){
             const similarityPercentageDOB = Helper.calculateStringSimilarity(savedDOB, pan_dob);   
             console.log("similarityPercentageName : ",similarityPercentageName)
             console.log("similarityPercentageDOB : ",similarityPercentageDOB)
-            if(pan_number == savedpan && similarityPercentageDOB >= 60 && similarityPercentageName >= 60){
+            if(pan_number == savedpan && similarityPercentageDOB >= 60 && similarityPercentageName >= 20){
               const matchPer = {
                 pan_number_match : "100.00",
                 name_match : similarityPercentageName,
                 dob_match : similarityPercentageDOB,
                 fullname : pan_full_name.toUpperCase(),
                 DOB : pan_dob,
-                PAN_number : pan_number
+                PAN_number : pan_number,
+                father_name : father_name
               }
               // updated image name in client aadhar
               const result = await Client.updateOne({ mobile: mobile }, { $set: { pan_ocr: randomUid } });
               if (result.modifiedCount > 0) {
+              await Pan.updateOne({ mobile: mobile }, { $set: { father_name: father_name } });  
               res.status(200).json({ status: true, message: 'PAN OCR is Successfull, PAN Image is Valid', data : matchPer });
               } else {
               res.status(200).json({ status: false, message: 'Error While Validating PAN ' });  

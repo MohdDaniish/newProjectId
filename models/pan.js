@@ -18,6 +18,7 @@ const panSchema = new mongoose.Schema({
   email: { type: String },
   full_name: { type: String },
   full_name_split: { type: String },
+  father_name: { type: String, default: null},
   gender: { type: String },
   input_dob: { type: String },
   less_info: { type: Boolean },

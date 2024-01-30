@@ -18,6 +18,7 @@ const Aadhar = require('../models/aadhaar_detail.js');
 const voter = require('../controller/voter.js');
 const pan = require('../controller/pan.js');
 const aadhaar = require('../controller/aadhaar.js');
+const Pan = require('../models/pan.js');
 
 router.post("/register", async (req,res) =>{
     try {
@@ -727,6 +728,66 @@ router.post('/seeKyc', async (req, res) => {
   } catch (error) {
     return res.status(200).json({ status:false, message:'error while fetching Client' });
 }
+})
+
+router.post('/getName', async (req, res) => {
+  try{
+    const { mobile } = req.body;
+    if (!mobile) {
+      return res.status(200).json({ status:false, message:'Mobile is required',error: 'Mobile is required' });
+    }
+    const isClient = await Pan.findOne({ mobile : mobile });
+    if(isClient){
+      const dataObject = {
+        full_name: isClient.full_name,
+      };
+      return res.status(200).json({ status:true, message:'User Details', data : dataObject });
+    }
+  } catch (error) {
+    return res.status(200).json({ status:false, message:'error while fetching Client' });
+}
+})
+
+router.post('/delKyc', async (req, res) => {
+// Perform a left outer join between clients and pans collections
+    db.clients.aggregate([
+      {
+        $lookup: {
+          from: "pans",
+          localField: "mobile",
+          foreignField: "mobile",
+          as: "panMatches"
+        }
+      },
+      // Perform a left outer join between clients and aadhars collections
+      {
+        $lookup: {
+          from: "aadhars",
+          localField: "mobile",
+          foreignField: "mobile",
+          as: "aadharMatches"
+        }
+      },
+      // Merge the matched documents from clients into pans
+      {
+        $merge: {
+          into: "pans",
+          whenMatched: "merge"
+        }
+      },
+      // Merge the matched documents from clients into aadhars
+      {
+        $merge: {
+          into: "aadhars",
+          whenMatched: "merge"
+        }
+      },
+      // Remove the clients documents
+      {
+        $unset: "clients"
+      }
+    ]);
+
 })
 
 module.exports = router;
